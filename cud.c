@@ -33,6 +33,27 @@ enum MarkdownElement {
   MARKDOWN_ELEMENT,
 };
 
+void print_emphasis_text(const char *, void *);
+void print_bold_text(const char *, void *);
+void print_strikethrough_text(const char *, void *);
+void print_underline_text(const char *, void *);
+void print_blockquote_text(const char *, void *);
+void print_inline_code(const char *, void *);
+void print_listing_code(const char *, void *);
+void print_hyperlink_formatted(const char *, void *);
+void print_list_item_ordered(const char *, void *);
+void print_list_item_unordered(const char *, void *);
+void print_table_cell(const char *, void *);
+void print_table_sep(const char *, void *);
+void print_escaped_code(const char *, void *);
+void print_header1_text(const char *, void *);
+void print_header2_text(const char *, void *);
+void print_header3_text(const char *, void *);
+void print_header4_text(const char *, void *);
+void print_header5_text(const char *, void *);
+void print_header6_text(const char *, void *);
+void print_simple_text(const char *, void *);
+
 struct MarkdownConstruct {
   const char *delim_begin;
   const char *delim_end;
