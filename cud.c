@@ -1,20 +1,15 @@
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
 
 #include <ncurses.h>
 
 typedef enum MarkdownElement MarkdownElement;
 typedef struct MarkdownConstruct MarkdownConstruct;
+typedef void(FormatFunction)(const char *, void *);
 
-
-
-
-
-
-enum MarkdownElement
-{
+enum MarkdownElement {
   EMPHASIS,
   BOLD,
   STRIKETHROUGH,
@@ -38,8 +33,7 @@ enum MarkdownElement
   MARKDOWN_ELEMENT,
 };
 
-struct MarkdownConstruct
-{
+struct MarkdownConstruct {
   const char *delim_begin;
   const char *delim_end;
   const char *alt_delim_begin;
@@ -52,42 +46,136 @@ struct MarkdownConstruct
   const char *alt_suffix_pattern;
   const char *content_literal;
   const char *content_pattern;
+  FormatFunction format_function;
 };
 
-const MarkdownConstruct const construct_table[MARKDOWN_ELEMENT] =
-{
-   [EMPHASIS] = { .delim_begin = "*", .alt_delim_begin = "_",
-	   	  .delim_end = "*", .alt_delim_end = "_", },
-   [BOLD] = { .delim_begin = "**", .alt_delim_begin = "__",
-	   	  .delim_end = "**", .alt_delim_end = "__", },
-   [STRIKETHROUGH] = { .delim_begin = "~",  .delim_end = "~", },
-   [UNDERLINE] = { .delim_begin = "~~",  .delim_end = "~~", },
-   [BLOCKQUOTE] = { .prefix_literal = ">", },
-   [CODE_INLINE] = { .delim_begin = "`", .delim_end = "`", },
-   [CODE_LISTING] = { .delim_begin = "```\n", .delim_end = "\n```", },
-   [HYPERLINK] = { .delim_begin = "[", .delim_end = "]", 
-    		.trail_delim_begin = "(", .trail_delim_end = ")", },
-   [LIST_ORDERED] = { .prefix_pattern = "[0-9]+[-]", },
-   [LIST_UNORDERED] = { .prefix = "-", },
-   [TABLE_CELL] = { .delim_begin = "|", .delim_end = "|", },
-   [TABLE_SEP] = { .delim_begin = "|", .delim_end = "|", 
-	   	 .conent_pattern = "[-]+", },
-   [ESCAPED_CODE] = { .prefix_literal = "\\", },
-   [HEADER1] = { .prefix_literal = "# ", suffix_pattern = "[\\n][-]+",
-   		.alt_suffix_pattern = "[\\n][=]+", },
-   [HEADER2] = { .prefix_literal = "## ", suffix_pattern = "[\\n][-]+",
-   		.alt_suffix_pattern = "[\\n][=]+", },
-   [HEADER3] = { .prefix_literal = "### ", suffix_pattern = "[\\n][-]+",
-   		.alt_suffix_pattern = "[\\n][=]+", },
-   [HEADER4] = { .prefix_literal = "#### ", suffix_pattern = "[\\n][-]+",
-   		.alt_suffix_pattern = "[\\n][=]+", },
-   [HEADER5] = { .prefix_literal = "##### ", suffix_pattern = "[\\n][-]+",
-   		.alt_suffix_pattern = "[\\n][=]+", },
-   [HEADER6] = { .prefix_literal = "###### ", suffix_pattern = "[\\n][-]+",
-   		.alt_suffix_pattern = "[\\n][=]+", },
-   [SIMPLE_TEXT] = { .content_pattern = ".+", },
+const MarkdownConstruct const construct_table[MARKDOWN_ELEMENT] = {
+    [EMPHASIS] =
+        {
+            .delim_begin = "*",
+            .alt_delim_begin = "_",
+            .delim_end = "*",
+            .alt_delim_end = "_",
+            .format_function = print_emphasis_text,
+        },
+    [BOLD] =
+        {
+            .delim_begin = "**",
+            .alt_delim_begin = "__",
+            .delim_end = "**",
+            .alt_delim_end = "__",
+            .format_function = print_bold_text,
+        },
+    [STRIKETHROUGH] =
+        {
+            .delim_begin = "~",
+            .delim_end = "~",
+            .format_function = print_strikethrough_text,
+        },
+    [UNDERLINE] =
+        {
+            .delim_begin = "~~",
+            .delim_end = "~~",
+            .format_function = print_underline_text,
+        },
+    [BLOCKQUOTE] =
+        {
+            .prefix_literal = ">",
+            .format_function = print_blockquote_text,
+        },
+    [CODE_INLINE] =
+        {
+            .delim_begin = "`",
+            .delim_end = "`",
+            .format_function = print_inline_code,
+        },
+    [CODE_LISTING] =
+        {
+            .delim_begin = "```\n",
+            .delim_end = "\n```",
+            .format_function = print_listing_code,
+        },
+    [HYPERLINK] =
+        {
+            .delim_begin = "[",
+            .delim_end = "]",
+            .trail_delim_begin = "(",
+            .trail_delim_end = ")",
+            .format_function = print_hyperlink_formatted,
+        },
+    [LIST_ORDERED] =
+        {
+            .prefix_pattern = "[0-9]+[-]",
+            .format_function = print_list_item_ordered,
+        },
+    [LIST_UNORDERED] =
+        {
+            .prefix = "-",
+            .format_function = print_list_item_unordered,
+        },
+    [TABLE_CELL] =
+        {
+            .delim_begin = "|",
+            .delim_end = "|",
+            .format_function = print_table_cell,
+        },
+    [TABLE_SEP] =
+        {
+            .delim_begin = "|",
+            .delim_end = "|",
+            .conent_pattern = "[-]+",
+            .format_function = print_table_sep,
+        },
+    [ESCAPED_CODE] =
+        {
+            .prefix_literal = "\\",
+            .format_function = print_escaped_code,
+        },
+    [HEADER1] =
+        {
+            .prefix_literal = "# ",
+            suffix_pattern = "[\\n][-]+",
+            .alt_suffix_pattern = "[\\n][=]+",
+            .format_function = print_header1_text,
+        },
+    [HEADER2] =
+        {
+            .prefix_literal = "## ",
+            suffix_pattern = "[\\n][-]+",
+            .alt_suffix_pattern = "[\\n][=]+",
+            .format_function = print_header2_text,
+        },
+    [HEADER3] =
+        {
+            .prefix_literal = "### ",
+            suffix_pattern = "[\\n][-]+",
+            .alt_suffix_pattern = "[\\n][=]+",
+            .format_function = print_header3_text,
+        },
+    [HEADER4] =
+        {
+            .prefix_literal = "#### ",
+            suffix_pattern = "[\\n][-]+",
+            .alt_suffix_pattern = "[\\n][=]+",
+            .format_function = print_header4_text,
+        },
+    [HEADER5] =
+        {
+            .prefix_literal = "##### ",
+            suffix_pattern = "[\\n][-]+",
+            .alt_suffix_pattern = "[\\n][=]+",
+            .format_function = print_header5_text,
+        },
+    [HEADER6] =
+        {
+            .prefix_literal = "###### ",
+            suffix_pattern = "[\\n][-]+",
+            .alt_suffix_pattern = "[\\n][=]+",
+            .format_function = print_header6_text,
+        },
+    [SIMPLE_TEXT] =
+        {
+            .content_pattern = ".+",
+            .format_function = print_simple_text,
+        },
 };
-
-
-
-
