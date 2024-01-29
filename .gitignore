@@ -1,0 +1,16 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/muktte
+muktte.so
+muktte.dylib
+muktte.dll
+muktte.a
+muktte.lib
+muktte-test-*
+*.exe
+*.pdb
+*.o
+*.obj
+*.lst
