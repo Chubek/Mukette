@@ -1,13 +1,15 @@
 #ifndef MUKETTE_H
 #define MUKETTE_H
 
+#include <curses.h>
+#include <spawn.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <curses.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #ifndef MAX_HYPERLINK
 #define MAX_HYPERLINK 4096
@@ -16,9 +18,11 @@
 typedef struct Pair Pair;
 static struct Pair {
   int y, x;
-  char *link;
+  const char *link;
 } hyperlinks[MAX_HYPERLINK] = {{0, 0}};
 static size_t hyperlinks_idx = 0;
+
+static struct MuketteConfig { const char *muk_browser; } configuration;
 
 #define ATTR_ADDSTR(ATTR, TEXT)                                                \
   do {                                                                         \
@@ -32,6 +36,7 @@ static size_t hyperlinks_idx = 0;
     init_pair(PAIRNUM, FORE, BACK);                                            \
   } while (0)
 
+#define PRINT_NORMAL(text) ATTR_ADDSTR(A_NORMAL, text)
 #define PRINT_BOLD(text) ATTR_ADDSTR(A_BOLD, text)
 #define PRINT_ITALIC(text) ATTR_ADDSTR(A_ITALIC, text)
 #define PRINT_BOLD_ITALIC(text) ATTR_ADDSTR(A_BOLD | A_ITALIC, text)
@@ -42,9 +47,9 @@ static size_t hyperlinks_idx = 0;
   ATTR_ADDSTR(A_BOLD | A_UNDERLINE | A_ITALIC, text)
 #define PRINT_COLOR_PAIR(pnum, text) ATTR_ADDSTR(COLOR_PAIR(pnum), text)
 
-#define
-
 #define NEWLINE() addch('\n')
+#define WHITESPACE() addch(' ')
+#define TAB() addch('\t')
 #define POLL() getch()
 #define REFRESH() refresh()
 #define GETPOS(y, x) getyx(y, x)
@@ -53,6 +58,8 @@ static size_t hyperlinks_idx = 0;
 #define KEY_IS_VERT_ARROW(ch) (ch == KEY_UP || ch == KEY_DOWN)
 #define KEY_IS_HORIZ_ARROW(ch) (ch == KEY_LEFT || ch == KEY_RIGHT)
 #define KEY_IS_ACTION(ch) (ch == KEY_ENTER || ch == KEY_COMMAND)
+#define KEY_IS_NEXT(ch) (ch == KEY_STAB || ch == KEY_NPAGE)
+#define KEY_IS_PREV(ch) (ch == KEY_PPAGE || ch == KEY_BTAB)
 
 #define INIT_SCREEN() initscr()
 #define END_SCREEN() endwin()
@@ -60,6 +67,7 @@ static size_t hyperlinks_idx = 0;
 static inline Pair new_pair(int y, int x, char *link) {
   return (Pair){.y = y, .x = x, .link = link};
 }
+
 static inline char *get_link(int y, int x) {
   for (size_t i = 0; i < hyperlinks_idx; i++)
     if ((hyperlinks[i].x > x &&
@@ -67,6 +75,28 @@ static inline char *get_link(int y, int x) {
         hyperlinks[i].y == y)
       return hyperlinks[i].link;
   return NULL;
+}
+
+static inline void navigate_to_link(char *link) {
+  const char *browser = configuration.muk_browser;
+  const char *args[] = {link, NULL};
+
+  pid_t child_pid;
+  int status;
+
+  if (posix_spawnp(&child_pid, browser, NULL, NULL, (char *const *)args,
+                   environ) == 0) {
+    waitpid(child_pid, &status, 0);
+
+    if (WIFEXITED(status)) {
+      int exit_status = WEXITSTATUS(status);
+      printf("Browser exited with status: %d\n", exit_status);
+    } else {
+      printf("Browser process did not exit successfully\n");
+    }
+  } else {
+    perror("Failed to spawn browser process");
+  }
 }
 
 static inline void hyperlink_action(void) {
@@ -89,43 +119,64 @@ static inline void free_hyperlinks(void) {
     free(hyperlinks[hyperlinks_idx].link);
 }
 
-static inline void move_up(void) {
+static inline void move_up(v1``oid) {
   int y, x;
-  int ybeg, xbeg;
   getyx(y, x);
-  getbegyx(initscr, ybeg, xbeg);
-  y = y - ybeg;
-  move(y, x);
+  move(y - 1, x);
 }
 
 static inline void move_down(void) {
   int y, x;
-  int ybeg, xbeg;
   getyx(y, x);
-  getbegyx(initscr, ybeg, xbeg);
-  y = y + (y - ybeg);
-  move(y, x);
+  move(y + 1, x);
 }
 
 static inline void move_left(void) {
   int y, x;
-  int ybeg, xbeg;
   getyx(y, x);
-  getbegyx(initscr, ybeg, xbeg);
-  x = xbeg - x;
-  move(y, x);
+  move(y, x - 1);
 }
 
 static inline void move_right(void) {
   int y, x;
-  int ybeg, xbeg;
   getyx(y, x);
-  getbegyx(initscr, ybeg, xbeg);
-  x = x + (xbeg - x);
-  move(y, x);
+  move(y, x + 1);
 }
 
-static inline void navigate(void) {
+static inline void jump_next_link(void) {
+  int y, x;
+  getyx(y, x);
+
+  for (size_t i = 0; i < hyperlinks_idx; i++) {
+    if (hyperlinks[i].y > y || (hyperlinks[i].y == y && hyperlinks[i].x > x)) {
+      move(hyperlinks[i].y, hyperlinks[i].x);
+      return;
+    }
+  }
+
+  if (hyperlinks_idx > 0) {
+    move(hyperlinks[0].y, hyperlinks[0].x);
+  }
+}
+
+static inline void jump_prev_link(void) {
+  int y, x;
+  getyx(y, x);
+
+  for (size_t i = hyperlinks_idx; i > 0; i--) {
+    if (hyperlinks[i - 1].y < y ||
+        (hyperlinks[i - 1].y == y && hyperlinks[i - 1].x < x)) {
+      move(hyperlinks[i - 1].y, hyperlinks[i - 1].x);
+      return;
+    }
+  }
+
+  if (hyperlinks_idx > 0) {
+    move(hyperlinks[hyperlinks_idx - 1].y, hyperlinks[hyperlinks_idx - 1].x);
+  }
+}
+
+static inline void poll_and_navigate(void) {
   int ch;
   while ((ch = POLL()), KEY_IS_NOT_EXIT(ch)) {
     if (KEY_IS_VERT_ARROW(ch) || KEY_IS_HORIZ_ARROW(ch)) {
@@ -147,7 +198,21 @@ static inline void navigate(void) {
         break;
       }
     } else if (KEY_IS_ACTION(ch))
+      hyperlink_action();
+    else if (KEY_IS_NEXT(ch))
+      jump_next_link();
+    else if (KEY_IS_PREV(ch))
+      jump_prev_link();
   }
+}
+
+static inline void initialize_muk_config(void) {
+  const char *env_var = NULL;
+
+  if ((env_var = getenv("MUK_BROWSER")) == NULL)
+    configuration.muk_browser = "w3m";
+  else
+    configuration.muk_browser = env_var;
 }
 
 #endif
