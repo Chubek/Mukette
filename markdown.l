@@ -2,6 +2,19 @@
 
 #include "mukette.h"
 
+#ifndef LEX_STACK_MAX
+#define LEX_STACK_MAX 4096
+#endif
+
+static int stack[LEX_STACK_MAX] = {-1};
+static int stack_top = 0;
+
+static inline int push_stack(int state) 
+{ stack[stack_top++] = state; return state; }
+static inline int pop_stack(void) 
+{ int state = (stack[stack_top--] = -1); return stack[stack_top]; }
+
+
 %}
 
 %s BOLD
@@ -17,35 +30,35 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 %%
 
 <BOLD>[\\]?[*_]{2}      { if (yytext[0] != '\\') 
-                                        { BEGIN(INITIAL); } 
+                                        { BEGIN(stack_pop()); } 
                                         else { PRINT_BOLD(&yytext[1]); } } 
 <BOLD>.+                { PRINT_BOLD(yytext); }
 
 
 
 <ITALIC>[\\]?[*_]{1}    { if (yytext[0] != '\\')                      
-                                        { BEGIN(INITIAL); } 
+                                        { BEGIN(stack_pop()); } 
                                         else { PRINT_ITALIC(&yytext[1]); } } 
 <ITALIC>.+              { PRINT_ITALIC(yytext); }
 
 
 
-<BOLD_ITALIC>[\\]?[*_]{3}   { if (yytext[0] != '\\') 
-					{ BEGIN(INITIAL); }
+<BOLD,ITALIC>[\\]?[*_]{3}   { if (yytext[0] != '\\') 
+					{ BEGIN(stack_pop()); }
 					else { BOLD_PRINT_ITALIC(&yytext[1]); } }
-<BOLD_ITALIC>.+             { BOLD_PRINT_ITALIC(yytext); }
+<BOLD,ITALIC>.+             { BOLD_PRINT_ITALIC(yytext); }
 
 
 
 <UNDERLINE>[\\]?[_]{2}  { if (yytext[0] != '\\') 
-                                        { BEGIN(INITIAL); } 
+                                        { BEGIN(stack_pop()); } 
                                         else { PRINT_UNDERLINE(&yytext[1]); } } 
 <UNDERLINE>.+           { PRINT_UNDERLINE(yytext); }
 
 
 
 <STRIKETHROUGH>[\\]?[~]{2}  { if (yytext[0] != '\\') 
-                                        { BEGIN(INITIAL); } 
+                                        { BEGIN(stack_pop()); } 
                                         else { PRINT_BOLD_UNDERLINE(&yytext[1]); } } 
 <STRIKETHROUGH>.+       { PRINT_BOLD_UNDERLINE(yytext); }
 
@@ -54,18 +67,36 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 				else { PRINT_ITALIC_UNDERLINE(&yytext[1]); } }
 <HYPERLINK>.+		{ PRINT_ITALIC_UNDERLINE(yytext); }
 
-<URL>{web_url} ")"	{ add_hyperlink(&yytext[0]); BEGIN(INITIAL); }
+<URL>{web_url} ")"	{ add_hyperlink(&yytext[0]); BEGIN(stack_pop()); }
 
-<INITIAL>[\\]?[*_]{1}	 { if (yytext[0] != '\\') 
-					{ BEGIN(ITALIC); }
+<TABLE>///implement
+
+
+
+<*>[\\]?[*_]{1}   { if (yytext[0] != '\\') 
+					{ BEGIN(push_stack(ITALIC)); }
 					else { PRINT_NORMAL(&yytext[1]); } }
-<INITIAL>[\\]?[*_]{2}    { if (yytext[0] != '\\') 
-					{ BEGIN(UNDERLINE); }
+<*>[\\]?[*_]{2}   { if (yytext[0] != '\\') 
+					{ BEGIN(push_stack(UNDERLINE)); }
 					else { PRINT_NORMAL(&yytext[1]); } }
-<INITIAL>[\\]?[~]{2}     { if (yytext[0] != '\\') 
-					{ BEGIN(STRIKETHROUGH); }
+<*>[\\]?[~]{2}    { if (yytext[0] != '\\') 
+					{ BEGIN(push_stack(STRIKETHROUGH)); }
 					else { PRINT_NORMAL(&yytext[1]); } }
 
-<INITIAL>[\\]?[\[]	 { if (yytext[0] != '\\')
-					{ BEGIN(HYPERLINK); }
+<*>[\\]?[\[]  	 { if (yytext[0] != '\\')
+					{ BEGIN(push_stack(HYPERLINK)); }
 					else { PRINT_NORMAL(&yytext[1]); } }
+
+<*>[\\]?[|]	 { if (yytext[0] != '\\')
+					{ BEGIN(push_stack(TABLE));	}
+					else { PRINT_NORMAL(&yytext[1]); } }
+
+
+
+
+<*>[\r\n]+	{ NEWLINE(); BEGIN(pop_stack()); }
+<*>[ \t]	{ WHITESPACE();	}		
+<*>[^ \t\r\n]+  { PRINT_NORMAL(&yytext[0]); }
+
+
+
