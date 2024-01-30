@@ -15,25 +15,28 @@
 #define MAX_HYPERLINK 4096
 #endif
 
-typedef struct Pair Pair;
-static struct Pair {
+typedef struct Pair {
   int y, x;
   const char *link;
-} hyperlinks[MAX_HYPERLINK] = {{0, 0}};
+} Pair;
+
+static Pair hyperlinks[MAX_HYPERLINK] = {{0, 0}};
 static size_t hyperlinks_idx = 0;
 
-static struct MuketteConfig { const char *muk_browser; } configuration;
+struct MuketteConfig {
+  const char *muk_browser;
+} configuration;
 
-#define ATTR_ADDSTR(ATTR, TEXT)                                                \
-  do {                                                                         \
-    attron(ATTR);                                                              \
-    addstr(TEXT);                                                              \
-    attroff(ATTR);                                                             \
+#define ATTR_ADDSTR(ATTR, TEXT) \
+  do {                          \
+    attron(ATTR);               \
+    addstr(TEXT);               \
+    attroff(ATTR);              \
   } while (0)
 
-#define ATTR_COLORPAIR_INIT(PAIRNUM, FORE, BACK)                               \
-  do {                                                                         \
-    init_pair(PAIRNUM, FORE, BACK);                                            \
+#define ATTR_COLORPAIR_INIT(PAIRNUM, FORE, BACK) \
+  do {                                           \
+    init_pair(PAIRNUM, FORE, BACK);              \
   } while (0)
 
 #define PRINT_NORMAL(text) ATTR_ADDSTR(A_NORMAL, text)
@@ -43,7 +46,7 @@ static struct MuketteConfig { const char *muk_browser; } configuration;
 #define PRINT_UNDERLINE(text) ATTR_ADDSTR(A_UNDERLINE, text)
 #define PRINT_BOLD_UNDERLINE(text) ATTR_ADDSTR(A_BOLD | A_UNDERLINE, text)
 #define PRINT_ITALIC_UNDERLINE(text) ATTR_ADDSTR(A_ITALIC | A_UNDERLINE, text)
-#define PRINT_BOLD_ITALIC_UNDERLINE(text)                                      \
+#define PRINT_BOLD_ITALIC_UNDERLINE(text) \
   ATTR_ADDSTR(A_BOLD | A_UNDERLINE | A_ITALIC, text)
 #define PRINT_COLOR_PAIR(pnum, text) ATTR_ADDSTR(COLOR_PAIR(pnum), text)
 
@@ -64,20 +67,20 @@ static struct MuketteConfig { const char *muk_browser; } configuration;
 #define INIT_SCREEN() initscr()
 #define END_SCREEN() endwin()
 
-static inline Pair new_pair(int y, int x, char *link) {
+static inline Pair new_pair(int y, int x, const char *link) {
   return (Pair){.y = y, .x = x, .link = link};
 }
 
-static inline char *get_link(int y, int x) {
+static inline const char *get_link(int y, int x) {
   for (size_t i = 0; i < hyperlinks_idx; i++)
     if ((hyperlinks[i].x > x &&
-         hyperinks[i].x < x + strlen(hyperlinks[i].link)) &&
+         hyperlinks[i].x < x + strlen(hyperlinks[i].link)) &&
         hyperlinks[i].y == y)
       return hyperlinks[i].link;
   return NULL;
 }
 
-static inline void navigate_to_link(char *link) {
+static inline void navigate_to_link(const char *link) {
   const char *browser = configuration.muk_browser;
   const char *args[] = {link, NULL};
 
@@ -102,24 +105,24 @@ static inline void navigate_to_link(char *link) {
 static inline void hyperlink_action(void) {
   int y, x;
   getyx(y, x);
-  char *link = get_link(y, x);
+  const char *link = get_link(y, x);
   if (link == NULL)
     return;
   navigate_to_link(link);
 }
 
-static inline void add_hyperlink(char *link) {
+static inline void add_hyperlink(const char *link) {
   Pair p = new_pair(0, 0, link);
   GETPOS(p.y, p.x);
   hyperlinks[hyperlinks_idx++] = p;
 }
 
 static inline void free_hyperlinks(void) {
-  while (--hyperlinks_idx)
-    free(hyperlinks[hyperlinks_idx].link);
+  while (hyperlinks_idx > 0)
+    free((char *)hyperlinks[--hyperlinks_idx].link);
 }
 
-static inline void move_up(v1``oid) {
+static inline void move_up(void) {
   int y, x;
   getyx(y, x);
   move(y - 1, x);
@@ -182,16 +185,16 @@ static inline void poll_and_navigate(void) {
     if (KEY_IS_VERT_ARROW(ch) || KEY_IS_HORIZ_ARROW(ch)) {
       switch (ch) {
       case KEY_UP:
-        inverted ? move_down() : move_up();
+        move_up();
         break;
       case KEY_DOWN:
-        inverted ? move_up() : move_down();
+        move_down();
         break;
       case KEY_LEFT:
-        inverted ? move_right() : move_left();
+        move_left();
         break;
       case KEY_RIGHT:
-        inverted ? move_left() : move_right();
+        move_right();
         break;
 
       default:
@@ -216,3 +219,4 @@ static inline void initialize_muk_config(void) {
 }
 
 #endif
+
