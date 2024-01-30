@@ -24,6 +24,8 @@ static inline int pop_stack(void)
 %s STRIKETHROUGH
 %s HYPERLINK
 %s URL
+%s TABLE_HEAD
+%s TABLE_BODY
 
 web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 
@@ -69,26 +71,34 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 
 <URL>{web_url} ")"	{ add_hyperlink(&yytext[0]); BEGIN(stack_pop()); }
 
-<TABLE>///implement
 
+<TABLE_HEAD,TABLE_BODY>[\\]?[|]	{ if (yytext[0] != '\\')
+					{ BEGIN(push_stack(TABLE)); }
+					else { TAB(); } }
 
+<TABLE_HEAD>[\r\n][|][-|]+ { NEWLINE(); BEGIN(push_stack(TABLE_BODY)); }
 
-<*>[\\]?[*_]{1}   { if (yytext[0] != '\\') 
+<TABLE_BODY>[|][ \r\n]+	{ NEWLINE(); BEGIN(pop_stack()); }
+
+<TABLE_HEAD>.+		{ PRINT_BOLD_ITALIC_UNDERLINE(&yytext[0]); }
+<TABLE_BODY>.+		{ PRINT_BOLD_UNDERLINE(&yytext[0]); }
+
+<*>[\\]?[*_]{1}   	{ if (yytext[0] != '\\') 
 					{ BEGIN(push_stack(ITALIC)); }
 					else { PRINT_NORMAL(&yytext[1]); } }
-<*>[\\]?[*_]{2}   { if (yytext[0] != '\\') 
+<*>[\\]?[*_]{2}  	{ if (yytext[0] != '\\') 
 					{ BEGIN(push_stack(UNDERLINE)); }
 					else { PRINT_NORMAL(&yytext[1]); } }
-<*>[\\]?[~]{2}    { if (yytext[0] != '\\') 
+<*>[\\]?[~]{2}    	{ if (yytext[0] != '\\') 
 					{ BEGIN(push_stack(STRIKETHROUGH)); }
 					else { PRINT_NORMAL(&yytext[1]); } }
 
-<*>[\\]?[\[]  	 { if (yytext[0] != '\\')
+<*>[\\]?[\[]  	 	{ if (yytext[0] != '\\')
 					{ BEGIN(push_stack(HYPERLINK)); }
 					else { PRINT_NORMAL(&yytext[1]); } }
 
-<*>[\\]?[|]	 { if (yytext[0] != '\\')
-					{ BEGIN(push_stack(TABLE));	}
+<*>[\\]?[|]	 	{ if (yytext[0] != '\\')
+					{ BEGIN(push_stack(TABLE_HEAD)); }
 					else { PRINT_NORMAL(&yytext[1]); } }
 
 
