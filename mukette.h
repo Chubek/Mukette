@@ -35,5 +35,9 @@
 #define INIT_SCREEN() 			initscr()
 #define END_SCREEN() 			endwin()
 
+#define STRING_PAIR_EQUAL(s1, s2, key) (!strncmp(s1, s2, strlen(key)))
+
+typedef unsigned long hash_t;
+typedef struct Hyperlink Hyperlink;
 
 #endif
