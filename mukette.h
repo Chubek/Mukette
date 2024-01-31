@@ -21,7 +21,7 @@
 #define COLOR_HEADER_MEDIUM 4
 #define COLOR_HEADER_SMALL 5
 
-#define HEADER_OFFSET 4
+#define HEADER_OFFSET 2
 
 extern char **environ;
 
@@ -59,6 +59,7 @@ struct MuketteConfig {
 #define PRINT_ITALIC_UNDERLINE(text) ATTR_ADDSTR(A_ITALIC | A_UNDERLINE, text)
 #define PRINT_BOLD_ITALIC_UNDERLINE(text) \
   ATTR_ADDSTR(A_BOLD | A_UNDERLINE | A_ITALIC, text)
+#define PRINT_BOLD_REVERSE(text) ATTR_ADDSTR(A_BOLD | A_REVERSE, text)
 #define PRINT_COLOR(pnum, text) ATTR_ADDSTR(COLOR_PAIR(pnum), text)
 
 #define START_COLOR() start_color()
@@ -101,9 +102,9 @@ static inline void horiz_rule(void) {
 static inline void print_header(int color, const char *text) {
   int y, x;
   getyx(stdscr, y, x);
-  attron(COLOR_PAIR(color));
-  mvprintw(y, HEADER_OFFSET, "[+] %s", text);
-  attroff(COLOR_PAIR(color));
+  attron(COLOR_PAIR(color) | A_BOLD);
+  mvprintw(y, HEADER_OFFSET, "[[*]] %s", text);
+  attroff(COLOR_PAIR(color) | A_BOLD);
 }
 
 static inline void navigate_to_link(const char *link) {
