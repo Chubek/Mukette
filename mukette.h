@@ -15,6 +15,8 @@
 #define MAX_HYPERLINK 4096
 #endif
 
+extern char **environ;
+
 typedef struct Pair {
   int y, x;
   const char *link;
@@ -55,7 +57,7 @@ struct MuketteConfig {
 #define TAB() addch('\t')
 #define POLL() getch()
 #define REFRESH() refresh()
-#define GETPOS(y, x) getyx(y, x)
+#define GETPOS(y, x) getyx(stdscr, y, x)
 
 #define KEY_IS_NOT_EXIT(ch) (ch != KEY_EXIT && ch != KEY_F(1))
 #define KEY_IS_VERT_ARROW(ch) (ch == KEY_UP || ch == KEY_DOWN)
@@ -104,7 +106,7 @@ static inline void navigate_to_link(const char *link) {
 
 static inline void hyperlink_action(void) {
   int y, x;
-  getyx(y, x);
+  GETPOS(y, x);
   const char *link = get_link(y, x);
   if (link == NULL)
     return;
@@ -124,31 +126,31 @@ static inline void free_hyperlinks(void) {
 
 static inline void move_up(void) {
   int y, x;
-  getyx(y, x);
+  GETPOS(y, x);
   move(y - 1, x);
 }
 
 static inline void move_down(void) {
   int y, x;
-  getyx(y, x);
+  GETPOS(y, x);
   move(y + 1, x);
 }
 
 static inline void move_left(void) {
   int y, x;
-  getyx(y, x);
+  GETPOS(y, x);
   move(y, x - 1);
 }
 
 static inline void move_right(void) {
   int y, x;
-  getyx(y, x);
+  GETPOS(y, x);
   move(y, x + 1);
 }
 
 static inline void jump_next_link(void) {
   int y, x;
-  getyx(y, x);
+  GETPOS(y, x);
 
   for (size_t i = 0; i < hyperlinks_idx; i++) {
     if (hyperlinks[i].y > y || (hyperlinks[i].y == y && hyperlinks[i].x > x)) {
@@ -164,7 +166,7 @@ static inline void jump_next_link(void) {
 
 static inline void jump_prev_link(void) {
   int y, x;
-  getyx(y, x);
+  GETPOS(y, x);
 
   for (size_t i = hyperlinks_idx; i > 0; i--) {
     if (hyperlinks[i - 1].y < y ||
