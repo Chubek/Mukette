@@ -36,7 +36,7 @@ struct MuketteConfig {
     attroff(ATTR);              \
   } while (0)
 
-#define ADDR_ADDCOLOR(PAIRNUM, FORE, BACK) 	 \
+#define ATTR_ADDCOLOR(PAIRNUM, FORE, BACK) 	 \
   do {                                           \
     init_pair(PAIRNUM, FORE, BACK);              \
   } while (0)
