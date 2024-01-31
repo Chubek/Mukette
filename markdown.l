@@ -44,6 +44,7 @@ int yywrap(void);
 %s URL
 %s TABLE_HEAD
 %s TABLE_BODY
+%s MULTILINE_CODE
 
 web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 
@@ -114,8 +115,26 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
     TAB();
 }
 
+<MULTILINE_CODE>^"```"$ {
+  attroff(A_REVERSE);
+  BEGIN(pop_stack());
+}
+
+<MULTILINE_CODE>.	{
+   addch(*yytext);
+}
+
+<MULTILINE_CODE>[\n]	{
+   NEWLINE();
+}
+
 <*>^[-*_]{3}$		{
      horiz_rule();
+}
+
+<*>^"```"$  {
+  attron(A_REVERSE);
+  BEGIN(MULTILINE_CODE);
 }
 
 <*>^[#]{5,6}[ \t][^\n\r]+$ {
@@ -143,6 +162,9 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
   free(original);
 }
 
+<*>[`].+[`]		{
+    PRINT_BOLD_REVERSE(trim_text(&yytext[1], yyleng - 1));
+}
 
 <*>[\\]?[*_]{1}   	{
     if (yytext[0] != '\\') {
@@ -201,7 +223,7 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
     }
 }
 
-<*>[\n]+	{
+<*>[\n]  	{
     NEWLINE();
 }
 
@@ -244,9 +266,9 @@ int main(int argc, char **argv) {
   START_COLOR();
   ATTR_ADDCOLOR(COLOR_TABLE_HEADER, COLOR_RED, COLOR_BLACK);
   ATTR_ADDCOLOR(COLOR_TABLE_BODY, COLOR_WHITE, COLOR_BLACK);
-  ATTR_ADDCOLOR(COLOR_HEADER_BIG, COLOR_RED, COLOR_BLACK);
-  ATTR_ADDCOLOR(COLOR_HEADER_MEDIUM, COLOR_BLUE, COLOR_BLACK);
-  ATTR_ADDCOLOR(COLOR_HEADER_SMALL, COLOR_MAGENTA, COLOR_BLACK);
+  ATTR_ADDCOLOR(COLOR_HEADER_BIG, COLOR_YELLOW, COLOR_BLACK);
+  ATTR_ADDCOLOR(COLOR_HEADER_MEDIUM, COLOR_WHITE, COLOR_BLACK);
+  ATTR_ADDCOLOR(COLOR_HEADER_SMALL, COLOR_GREEN, COLOR_BLACK);
   
   cbreak();
   noecho();
