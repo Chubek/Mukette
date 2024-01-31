@@ -117,9 +117,9 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
      horiz_rule();
 }
 
-<*>^[#]{1,2}[^\n\r]+$   {
-    while (*yytext++ = '#');
-    print_header(COLOR_HEADER_BIG, yytext);
+<*>^[#]{5,6}[^\n\r]+$	{
+  while (*yytext++ = '#');
+  print_header(COLOR_HEADER_SMALL, yytext);
 }
 
 <*>^[#]{3,4}[^\n\r]+$	{
@@ -127,10 +127,12 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
    print_header(COLOR_HEADER_MEDIUM, yytext);
 }
 
-<*>^[#]{5,6}[^\n\r]+$	{
-  while (*yytext++ = '#');
-  print_header(COLOr_HEADER_SMALL, yytext);
+
+<*>^[#]{1,2}[^\n\r]+$   {
+    while (*yytext++ = '#');
+    print_header(COLOR_HEADER_BIG, yytext);
 }
+
 
 <*>[\\]?[*_]{1}   	{
     if (yytext[0] != '\\') {
@@ -231,10 +233,10 @@ int main(int argc, char **argv) {
   INIT_SCREEN();
   START_COLOR();
   ATTR_ADDCOLOR(COLOR_TABLE_HEADER, COLOR_RED, COLOR_BLACK);
-  ATTR_ADDCOLOR(COLOR_TABLE_BODY, COLOR_BLACK, COLOR_WHITE);
-  ATTR_ADDCOLOR(COLOR_HEADER_BIG, COLOR_CYAN, COLOR_WHITE);
-  ATTR_ADDCOLOR(COLOR_HEADER_MEDIUM, COLOR_BLUE, COLOR_WHITE);
-  ATTR_ADDCOLOR(COLOR_HEADER_SMALL, COLOR_PURPLE, COLOR_CYAN);
+  ATTR_ADDCOLOR(COLOR_TABLE_BODY, COLOR_WHITE, COLOR_BLACK);
+  ATTR_ADDCOLOR(COLOR_HEADER_BIG, COLOR_CYAN, COLOR_BLACK);
+  ATTR_ADDCOLOR(COLOR_HEADER_MEDIUM, COLOR_BLUE, COLOR_BLACK);
+  ATTR_ADDCOLOR(COLOR_HEADER_SMALL, COLOR_MAGENTA, COLOR_BLACK);
   
   cbreak();
   noecho();
