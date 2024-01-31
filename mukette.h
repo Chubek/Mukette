@@ -98,10 +98,12 @@ static inline void horiz_rule(void) {
   hline('-', mx);
 }
 
-static inline void print_header(const char *text) {
+static inline void print_header(int color, const char *text) {
   int my, mx;
   getmaxyx(stdscr, my, mx);
-  mvprintw(my, HEADER_OFFSET, "[] %s", text);
+  attron(COLOR_PAIR(color));
+  mvprintw(my, HEADER_OFFSET, "[+] %s", text);
+  attroff(COLOR_PAIR(color));
 }
 
 static inline void navigate_to_link(const char *link) {
