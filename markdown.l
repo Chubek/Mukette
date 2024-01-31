@@ -6,7 +6,7 @@
 #define LEX_STACK_MAX 4096
 #endif
 
-static int stack[LEX_STACK_MAX] = {INITIAL};
+static int stack[LEX_STACK_MAX] = {0};
 static int stack_top = 1;
 
 static inline int push_stack(int state) {
@@ -20,7 +20,7 @@ static inline int pop_stack(void) {
 
 int yyerror(const char *msg);
 
-FILE *yyin = NULL;
+int yywrap(void);
 
 %}
 
@@ -38,24 +38,10 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 
 %%
 
-<BOLD>[\\]?[*_]{2}      {
-    if (yytext[0] != '\\') {
-        PRINT_BOLD(&yytext[1]);
-        BEGIN(stack_pop());
-    } else {
-        PRINT_BOLD(&yytext[1]);
-    }
-} 
-
-<BOLD>.+                {
-    PRINT_BOLD(yytext);
-    BEGIN(stack_pop());
-}
-
 <ITALIC>[\\]?[*_]{1}    {
     if (yytext[0] != '\\') {
         PRINT_ITALIC(&yytext[1]);
-        BEGIN(stack_pop());
+        BEGIN(pop_stack());
     } else {
         PRINT_ITALIC(&yytext[1]);
     }
@@ -63,41 +49,42 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 
 <ITALIC>.+              {
     PRINT_ITALIC(yytext);
-    BEGIN(stack_pop());
+    BEGIN(pop_stack());
 }
 
-<BOLD,ITALIC>[\\]?[*_]{3}   {
+
+<BOLD>[\\]?[*_]{2}      {
     if (yytext[0] != '\\') {
-        BOLD_PRINT_ITALIC(&yytext[1]);
-        BEGIN(stack_pop());
+        PRINT_BOLD(&yytext[1]);
+        BEGIN(pop_stack());
     } else {
-        BOLD_PRINT_ITALIC(&yytext[1]);
+        PRINT_BOLD(&yytext[1]);
+    }
+} 
+
+<BOLD>.+                {
+    PRINT_BOLD(yytext);
+    BEGIN(pop_stack());
+}
+
+<BOLD_ITALIC>[\\]?[*_]{3}   {
+    if (yytext[0] != '\\') {
+        PRINT_BOLD_ITALIC(&yytext[1]);
+        BEGIN(pop_stack());
+    } else {
+        PRINT_BOLD_ITALIC(&yytext[1]);
     }
 }
 
-<BOLD,ITALIC>.+             {
-    BOLD_PRINT_ITALIC(yytext);
-    BEGIN(stack_pop());
-}
-
-<UNDERLINE>[\\]?[_]{2}  {
-    if (yytext[0] != '\\') {
-        PRINT_UNDERLINE(&yytext[1]);
-        BEGIN(stack_pop());
-    } else {
-        PRINT_UNDERLINE(&yytext[1]);
-    }
-}
-
-<UNDERLINE>.+           {
-    PRINT_UNDERLINE(yytext);
-    BEGIN(stack_pop());
+<BOLD_ITALIC>.+             {
+    PRINT_BOLD_ITALIC(yytext);
+    BEGIN(pop_stack());
 }
 
 <STRIKETHROUGH>[\\]?[~]{2}  {
     if (yytext[0] != '\\') {
         PRINT_BOLD_UNDERLINE(&yytext[1]);
-        BEGIN(stack_pop());
+        BEGIN(pop_stack());
     } else {
         PRINT_BOLD_UNDERLINE(&yytext[1]);
     }
@@ -105,7 +92,22 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 
 <STRIKETHROUGH>.+       {
     PRINT_BOLD_UNDERLINE(yytext);
-    BEGIN(stack_pop());
+    BEGIN(pop_stack());
+}
+
+
+<UNDERLINE>[\\]?[~]{3}  {
+    if (yytext[0] != '\\') {
+        PRINT_UNDERLINE(&yytext[1]);
+        BEGIN(pop_stack());
+    } else {
+        PRINT_UNDERLINE(&yytext[1]);
+    }
+}
+
+<UNDERLINE>.+           {
+    PRINT_UNDERLINE(yytext);
+    BEGIN(pop_stack());
 }
 
 <HYPERLINK>[\\]?[\]\(]	{
@@ -118,19 +120,19 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 
 <HYPERLINK>.+		{
     PRINT_ITALIC_UNDERLINE(yytext);
-    BEGIN(stack_pop());
+    BEGIN(pop_stack());
 }
 
-<URL>{web_url} ")"	{
+<URL>{web_url}[)]	{
     add_hyperlink(&yytext[0]);
-    BEGIN(stack_pop());
+    BEGIN(pop_stack());
 }
 
 <TABLE_HEAD,TABLE_BODY>[\\]?[|]	{
     if (yytext[0] != '\\') {
-        BEGIN(push_stack(TABLE));
-    } else {
         TAB();
+    } else {
+        PRINT_NORMAL(&yytext[1]);
     }
 }
 
@@ -146,12 +148,12 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 
 <TABLE_HEAD>.+		{
     PRINT_BOLD_ITALIC_UNDERLINE(&yytext[0]);
-    BEGIN(stack_pop());
+    BEGIN(pop_stack());
 }
 
 <TABLE_BODY>.+		{
     PRINT_BOLD_UNDERLINE(&yytext[0]);
-    BEGIN(stack_pop());
+    BEGIN(pop_stack());
 }
 
 <*>[\\]?[*_]{1}   	{
@@ -164,7 +166,15 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 
 <*>[\\]?[*_]{2}  	{
     if (yytext[0] != '\\') {
-        BEGIN(push_stack(UNDERLINE));
+        BEGIN(push_stack(BOLD));
+    } else {
+        PRINT_NORMAL(&yytext[1]);
+    }
+}
+
+<*>[\\]?[*_]{3}  	{
+    if (yytext[0] != '\\') {
+        BEGIN(push_stack(BOLD_ITALIC));
     } else {
         PRINT_NORMAL(&yytext[1]);
     }
@@ -177,6 +187,15 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
         PRINT_NORMAL(&yytext[1]);
     }
 }
+
+<*>[\\]?[~]{3}    	{
+    if (yytext[0] != '\\') {
+        BEGIN(push_stack(UNDERLINE));
+    } else {
+        PRINT_NORMAL(&yytext[1]);
+    }
+}
+
 
 <*>[\\]?[\[]  		{
     if (yytext[0] != '\\') {
@@ -209,13 +228,17 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 
 %%
 
+int yywrap(void) {
+  return 1;
+}
+
 int yyerror(const char* msg) {
-   fprintf(stderr, msg);
-   fprintf(stderr, "\nMarkdown parse failed\n");
+   fprintf(stderr, "%s\n", msg);
+   fprintf(stderr, "Markdown parse failed\n");
    exit(EXIT_FAILURE);
 }
 
-int load_yyin(int arc, char **argv) {
+int load_yyin(int argc, char **argv) {
    if (argc == 1)
    	yyin = stdin;
    else
