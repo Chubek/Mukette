@@ -87,7 +87,7 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 }
 
 <TABLE_HEAD>[^|\n]+        {
-    PRINT_COLOR(1, &yytext[0]);
+    PRINT_COLOR(COLOR_TABLE_HEADER, &yytext[0]);
 }
 
 <TABLE_HEAD>[|-]+[\n]	  {
@@ -96,7 +96,7 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 }
 
 <TABLE_BODY>[^|\n]+	  {
-   PRINT_COLOR(2, &yytext[0]);
+   PRINT_COLOR(COLOR_TABLE_BODY, &yytext[0]);
 }
 
 <TABLE_BODY>[\n]{1}	  {
@@ -111,6 +111,25 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 
 <TABLE_HEAD,TABLE_BODY>[|] {
     TAB();
+}
+
+<*>^[-*_]{3}$		{
+     horiz_rule();
+}
+
+<*>^[#]{1,2}[^\n\r]+$   {
+    while (*yytext++ = '#');
+    print_header(COLOR_HEADER_BIG, yytext);
+}
+
+<*>^[#]{3,4}[^\n\r]+$	{
+   while (*yytext++ = '#');
+   print_header(COLOR_HEADER_MEDIUM, yytext);
+}
+
+<*>^[#]{5,6}[^\n\r]+$	{
+  while (*yytext++ = '#');
+  print_header(COLOr_HEADER_SMALL, yytext);
 }
 
 <*>[\\]?[*_]{1}   	{
@@ -210,8 +229,12 @@ int main(int argc, char **argv) {
   initialize_muk_config();
 
   INIT_SCREEN();
-  ATTR_ADDCOLOR(1, COLOR_RED, COLOR_BLACK);
-  ATTR_ADDCOLOR(2, COLOR_BLACK, COLOR_WHITE);
+  START_COLOR();
+  ATTR_ADDCOLOR(COLOR_TABLE_HEADER, COLOR_RED, COLOR_BLACK);
+  ATTR_ADDCOLOR(COLOR_TABLE_BODY, COLOR_BLACK, COLOR_WHITE);
+  ATTR_ADDCOLOR(COLOR_HEADER_BIG, COLOR_CYAN, COLOR_WHITE);
+  ATTR_ADDCOLOR(COLOR_HEADER_MEDIUM, COLOR_BLUE, COLOR_WHITE);
+  ATTR_ADDCOLOR(COLOR_HEADER_SMALL, COLOR_PURPLE, COLOR_CYAN);
   
   cbreak();
   noecho();
@@ -219,8 +242,9 @@ int main(int argc, char **argv) {
 
   load_yyin(argc, argv);
   yylex();
-  poll_and_navigate();
+  REFRESH();
 
+  poll_and_navigate();  
   END_SCREEN();
 
   yyin != stdin 
