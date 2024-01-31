@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <getopt.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #ifndef LEX_STACK_MAX
 #define LEX_STACK_MAX 4096
@@ -117,20 +118,29 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
      horiz_rule();
 }
 
-<*>^[#]{5,6}[^\n\r]+$	{
-  while (*yytext++ = '#');
-  print_header(COLOR_HEADER_SMALL, yytext);
+<*>^[#]{5,6}[ \t][^\n\r]+$ {
+  char *header, *original;
+  header = original = strndup(yytext, yyleng);
+  while (*header++ == '#');
+  print_header(COLOR_HEADER_SMALL, &header[0]);
+  free(original);
 }
 
-<*>^[#]{3,4}[^\n\r]+$	{
-   while (*yytext++ = '#');
-   print_header(COLOR_HEADER_MEDIUM, yytext);
+<*>^[#]{3,4}[ \t][^\n\r]+$ {
+  char *header, *original;
+  header = original = strndup(yytext, yyleng);
+  while (*header++ == '#');
+  print_header(COLOR_HEADER_MEDIUM, &header[0]);
+  free(original);
 }
 
 
-<*>^[#]{1,2}[^\n\r]+$   {
-    while (*yytext++ = '#');
-    print_header(COLOR_HEADER_BIG, yytext);
+<*>^[#]{1,2}[ \t][^\n\r]+$   {
+  char *header, *original;
+  header = original = strndup(yytext, yyleng);
+  while (*header++ == '#');
+  print_header(COLOR_HEADER_BIG, &header[0]);
+  free(original);
 }
 
 
@@ -191,7 +201,7 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
     }
 }
 
-<*>[\r\n]+	{
+<*>[\n]+	{
     NEWLINE();
 }
 
@@ -229,12 +239,12 @@ int load_yyin(int argc, char **argv) {
 
 int main(int argc, char **argv) {
   initialize_muk_config();
-
+  
   INIT_SCREEN();
   START_COLOR();
   ATTR_ADDCOLOR(COLOR_TABLE_HEADER, COLOR_RED, COLOR_BLACK);
   ATTR_ADDCOLOR(COLOR_TABLE_BODY, COLOR_WHITE, COLOR_BLACK);
-  ATTR_ADDCOLOR(COLOR_HEADER_BIG, COLOR_CYAN, COLOR_BLACK);
+  ATTR_ADDCOLOR(COLOR_HEADER_BIG, COLOR_RED, COLOR_BLACK);
   ATTR_ADDCOLOR(COLOR_HEADER_MEDIUM, COLOR_BLUE, COLOR_BLACK);
   ATTR_ADDCOLOR(COLOR_HEADER_SMALL, COLOR_MAGENTA, COLOR_BLACK);
   
