@@ -36,7 +36,7 @@ struct MuketteConfig {
     attroff(ATTR);              \
   } while (0)
 
-#define ATTR_COLORPAIR_INIT(PAIRNUM, FORE, BACK) \
+#define ADDR_ADDCOLOR(PAIRNUM, FORE, BACK) 	 \
   do {                                           \
     init_pair(PAIRNUM, FORE, BACK);              \
   } while (0)
@@ -50,7 +50,7 @@ struct MuketteConfig {
 #define PRINT_ITALIC_UNDERLINE(text) ATTR_ADDSTR(A_ITALIC | A_UNDERLINE, text)
 #define PRINT_BOLD_ITALIC_UNDERLINE(text) \
   ATTR_ADDSTR(A_BOLD | A_UNDERLINE | A_ITALIC, text)
-#define PRINT_COLOR_PAIR(pnum, text) ATTR_ADDSTR(COLOR_PAIR(pnum), text)
+#define PRINT_COLOR(pnum, text) ATTR_ADDSTR(COLOR_PAIR(pnum), text)
 
 #define NEWLINE() addch('\n')
 #define WHITESPACE() addch(' ')
@@ -208,6 +208,8 @@ static inline void poll_and_navigate(void) {
       jump_next_link();
     else if (KEY_IS_PREV(ch))
       jump_prev_link();
+    else
+       return;
   }
 }
 
