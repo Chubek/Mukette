@@ -99,10 +99,10 @@ static inline void horiz_rule(void) {
 }
 
 static inline void print_header(int color, const char *text) {
-  int my, mx;
-  getmaxyx(stdscr, my, mx);
+  int y, x;
+  getyx(stdscr, y, x);
   attron(COLOR_PAIR(color));
-  mvprintw(my, HEADER_OFFSET, "[+] %s", text);
+  mvprintw(y, HEADER_OFFSET, "[+] %s", text);
   attroff(COLOR_PAIR(color));
 }
 
