@@ -50,42 +50,50 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 
 %%
 
-<ITALIC>[^_*]+[_*]{1}      {
-    PRINT_ITALIC(trim_text(yytext, yyleng - 1));
+<*>[_*]{1}[^_*]+[_*]{1}.      {
+    PRINT_ITALIC(trim_text(&yytext[1], yyleng - 1));
     BEGIN(pop_stack());
 }
 
 
-<BOLD>[^_*]+[_*]{2}       {
-    PRINT_BOLD(trim_text(yytext, yyleng - 2));
+<*>[_*]{2}[^_*]+[_*]{2}       {
+    PRINT_BOLD(trim_text(&yytext[2], yyleng - 2));
     BEGIN(pop_stack());
 }
 
-<BOLD_ITALIC>[^_*]+[_*]{3}   {
-    PRINT_BOLD_ITALIC(trim_text(yytext, yyleng - 3));
+<*>[_*]{3}[^_*]+[_*]{3}   {
+    PRINT_BOLD_ITALIC(trim_text(&yytext[3], yyleng - 3));
     BEGIN(pop_stack());
 }
 
-<STRIKETHROUGH>[^_-]+[~-]{2} {
+<*>[~]{2}[^~]+[~]{2} {
     PRINT_BOLD_UNDERLINE(trim_text(yytext, yyleng - 2));
     BEGIN(pop_stack());
 }
 
 
-<UNDERLINE>[^~-]+[~-]{3}     {
+<*>[~]{3}[^~]+[~]{3}     {
     PRINT_UNDERLINE(trim_text(yytext, yyleng - 3));
     BEGIN(pop_stack());
 }
 
-<HYPERLINK>[^\](]+[\](]{1}   {
-   PRINT_ITALIC_UNDERLINE(trim_text(yytext, yyleng - 2));
-   BEGIN(URL);
-}
+<*>[\[][^\]]+[\](][^)]+[[)]	 {
+    char *dup1, *dup2, *original; 
+    int len = 0;
+    
+    dup1 = dup2 = original = strndup(&yytext[1], yyleng - 1);
 
-<URL>{web_url}[)]	 {
-    add_hyperlink(trim_text(&yytext[0], yyleng - 1));
-    pop_stack();
+    while (*dup1++ != ']')
+    	len++;
+
+    dup2[len] = '\0';
+
+    PRINT_BOLD_UNDERLINE(&dup2[0]);
+    
+    add_hyperlink(&dup1[0]);
     BEGIN(pop_stack());
+
+    free(original);
 }
 
 <TABLE_HEAD>[^|\n]+        {
