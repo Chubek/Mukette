@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -o3 -lncurses
+CFLAGS = -o3 -lncurses $(DEBUG)
 
 LEX_SOURCE = markdown.l
 LEX_TARGET = lex.yy.c
