@@ -1,6 +1,8 @@
 %{
 #include "mukette.h"
+#include <stdbool.h>
 #include <getopt.h>
+#include <unistd.h>
 
 #ifndef LEX_STACK_MAX
 #define LEX_STACK_MAX 4096
@@ -17,6 +19,14 @@ static inline int pop_stack(void) {
     return stack[--stack_top];
 }
 
+static inline char *trim_text(char *text, int pos) {
+   text[pos] = '\0';
+   return text;
+}
+
+static inline bool file_exists(const char *filename) {
+    return access(filename, F_OK) == 0;
+}
 
 int yyerror(const char *msg);
 
@@ -38,122 +48,69 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 
 %%
 
-<ITALIC>[\\]?[*_]{1}    {
-    if (yytext[0] != '\\') {
-        PRINT_ITALIC(&yytext[1]);
-        BEGIN(pop_stack());
-    } else {
-        PRINT_ITALIC(&yytext[1]);
-    }
-}
-
-<ITALIC>.+              {
-    PRINT_ITALIC(yytext);
+<ITALIC>[^_*]+[_*]{1}      {
+    PRINT_ITALIC(trim_text(yytext, yyleng - 1));
     BEGIN(pop_stack());
 }
 
 
-<BOLD>[\\]?[*_]{2}      {
-    if (yytext[0] != '\\') {
-        PRINT_BOLD(&yytext[1]);
-        BEGIN(pop_stack());
-    } else {
-        PRINT_BOLD(&yytext[1]);
-    }
-} 
-
-<BOLD>.+                {
-    PRINT_BOLD(yytext);
+<BOLD>[^_*]+[_*]{2}       {
+    PRINT_BOLD(trim_text(yytext, yyleng - 2));
     BEGIN(pop_stack());
 }
 
-<BOLD_ITALIC>[\\]?[*_]{3}   {
-    if (yytext[0] != '\\') {
-        PRINT_BOLD_ITALIC(&yytext[1]);
-        BEGIN(pop_stack());
-    } else {
-        PRINT_BOLD_ITALIC(&yytext[1]);
-    }
-}
-
-<BOLD_ITALIC>.+             {
-    PRINT_BOLD_ITALIC(yytext);
+<BOLD_ITALIC>[^_*]+[_*]{3}   {
+    PRINT_BOLD_ITALIC(trim_text(yytext, yyleng - 3));
     BEGIN(pop_stack());
 }
 
-<STRIKETHROUGH>[\\]?[~]{2}  {
-    if (yytext[0] != '\\') {
-        PRINT_BOLD_UNDERLINE(&yytext[1]);
-        BEGIN(pop_stack());
-    } else {
-        PRINT_BOLD_UNDERLINE(&yytext[1]);
-    }
-}
-
-<STRIKETHROUGH>.+       {
-    PRINT_BOLD_UNDERLINE(yytext);
+<STRIKETHROUGH>[^_-]+[~-]{2} {
+    PRINT_BOLD_UNDERLINE(trim_text(yytext, yyleng - 2));
     BEGIN(pop_stack());
 }
 
 
-<UNDERLINE>[\\]?[~]{3}  {
-    if (yytext[0] != '\\') {
-        PRINT_UNDERLINE(&yytext[1]);
-        BEGIN(pop_stack());
-    } else {
-        PRINT_UNDERLINE(&yytext[1]);
-    }
-}
-
-<UNDERLINE>.+           {
-    PRINT_UNDERLINE(yytext);
+<UNDERLINE>[^~-]+[~-]{3}     {
+    PRINT_UNDERLINE(trim_text(yytext, yyleng - 3));
     BEGIN(pop_stack());
 }
 
-<HYPERLINK>[\\]?[\]\(]	{
-    if (yytext[0] != '\\') {
-        BEGIN(URL);
-    } else {
-        PRINT_ITALIC_UNDERLINE(&yytext[1]);
-    }
+<HYPERLINK>[^\](]+[\](]{1}   {
+   PRINT_ITALIC_UNDERLINE(trim_text(yytext, yyleng - 2));
+   BEGIN(URL);
 }
 
-<HYPERLINK>.+		{
-    PRINT_ITALIC_UNDERLINE(yytext);
+<URL>{web_url}[)]	 {
+    add_hyperlink(trim_text(&yytext[0], yyleng - 1));
+    pop_stack();
     BEGIN(pop_stack());
 }
 
-<URL>{web_url}[)]	{
-    add_hyperlink(&yytext[0]);
-    BEGIN(pop_stack());
+<TABLE_HEAD>[^|\n]+        {
+    PRINT_COLOR(1, &yytext[0]);
 }
 
-<TABLE_HEAD,TABLE_BODY>[\\]?[|]	{
-    if (yytext[0] != '\\') {
-        TAB();
-    } else {
-        PRINT_NORMAL(&yytext[1]);
-    }
+<TABLE_HEAD>[|-]+[\n]	  {
+   NEWLINE();
+   BEGIN(TABLE_BODY);
 }
 
-<TABLE_HEAD>[\r\n][|][-|]+ {
-    NEWLINE();
-    BEGIN(push_stack(TABLE_BODY));
+<TABLE_BODY>[^|\n]+	  {
+   PRINT_COLOR(2, &yytext[0]);
 }
 
-<TABLE_BODY>[|][ \r\n]+	{
-    NEWLINE();
-    BEGIN(pop_stack());
+<TABLE_BODY>[\n]{1}	  {
+  NEWLINE();
 }
 
-<TABLE_HEAD>.+		{
-    PRINT_BOLD_ITALIC_UNDERLINE(&yytext[0]);
-    BEGIN(pop_stack());
+<TABLE_BODY>[\n]{2}	  {
+  NEWLINE();
+  BEGIN(pop_stack());
 }
 
-<TABLE_BODY>.+		{
-    PRINT_BOLD_UNDERLINE(&yytext[0]);
-    BEGIN(pop_stack());
+
+<TABLE_HEAD,TABLE_BODY>[|] {
+    TAB();
 }
 
 <*>[\\]?[*_]{1}   	{
@@ -215,14 +172,13 @@ web_url ((http|https):\/\/)?[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\/?[a-zA-Z0-9._\/%&=?-]*
 
 <*>[\r\n]+	{
     NEWLINE();
-    BEGIN(pop_stack());
 }
 
-<*>[ \t]	{
+<*>[ \t]+	{
     WHITESPACE();
 }
 
-<*>[^ \t\r\n]+  {
+<*>[^ \t\r\n*_\[|~]+  {
     PRINT_NORMAL(&yytext[0]);
 }
 
@@ -242,13 +198,21 @@ int load_yyin(int argc, char **argv) {
    if (argc == 1)
    	yyin = stdin;
    else
-   	yyin = fopen(argv[1], "r");
+   	yyin = file_exists(argv[1]) 
+		? fopen(argv[1], "r")
+		: NULL;
+
+   if (yyin == NULL)
+   	yyerror("Error opening file");
 }
 
 int main(int argc, char **argv) {
   initialize_muk_config();
 
   INIT_SCREEN();
+  ATTR_ADDCOLOR(1, COLOR_RED, COLOR_BLACK);
+  ATTR_ADDCOLOR(2, COLOR_BLACK, COLOR_WHITE);
+  
   cbreak();
   noecho();
   keypad(stdscr, TRUE);
