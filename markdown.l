@@ -231,6 +231,7 @@ int main(int argc, char **argv) {
   keypad(stdscr, TRUE);
 
   load_yyin(argc, argv);
+  yylex();
   poll_and_navigate();
 
   END_SCREEN();
