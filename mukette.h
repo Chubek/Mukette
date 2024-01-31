@@ -15,6 +15,14 @@
 #define MAX_HYPERLINK 4096
 #endif
 
+#define COLOR_TABLE_HEADER 1
+#define COLOR_TABLE_BODY 2
+#define COLOR_HEADER_BIG 3
+#define COLOR_HEADER_MEDIUM 4
+#define COLOR_HEADER_SMALL 5
+
+#define HEADER_OFFSET 4
+
 extern char **environ;
 
 typedef struct Pair {
@@ -41,6 +49,7 @@ struct MuketteConfig {
     init_pair(PAIRNUM, FORE, BACK);              \
   } while (0)
 
+
 #define PRINT_NORMAL(text) ATTR_ADDSTR(A_NORMAL, text)
 #define PRINT_BOLD(text) ATTR_ADDSTR(A_BOLD, text)
 #define PRINT_ITALIC(text) ATTR_ADDSTR(A_ITALIC, text)
@@ -52,6 +61,7 @@ struct MuketteConfig {
   ATTR_ADDSTR(A_BOLD | A_UNDERLINE | A_ITALIC, text)
 #define PRINT_COLOR(pnum, text) ATTR_ADDSTR(COLOR_PAIR(pnum), text)
 
+#define START_COLOR() start_color()
 #define NEWLINE() addch('\n')
 #define WHITESPACE() addch(' ')
 #define TAB() addch('\t')
@@ -80,6 +90,18 @@ static inline const char *get_link(int y, int x) {
         hyperlinks[i].y == y)
       return hyperlinks[i].link;
   return NULL;
+}
+
+static inline void horiz_rule(void) {
+  int my, mx;
+  getmaxyx(stdscr, my, mx);
+  hline('-', mx);
+}
+
+static inline void print_header(const char *text) {
+  int my, mx;
+  getmaxyx(stdscr, my, mx);
+  mvprintw(my, HEADER_OFFSET, "[] %s", text);
 }
 
 static inline void navigate_to_link(const char *link) {
