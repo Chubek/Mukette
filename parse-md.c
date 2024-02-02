@@ -36,20 +36,20 @@
 
 
 /* Checkes whether the prefix of `string` is `prefix` */
-static inline bool string_prefix_is(char *string, const char *prefix) {
+static inline bool string_prefix_is(const char *string, const char *prefix) {
   return strspn(string, prefix) == strlen(prefix);
 }
 
 
 /* Checks whether the suffix of `string` is `prefix` */
-static inline bool string_suffix_is(char *string, const char *suffix) {
-  return (strstr(string, suffix) + 1) == '\0';
+static inline bool string_suffix_is(const char *string, const char *suffix) {
+  return *(strstr(string, suffix) + 1) == '\0';
 }
 
 
 /* Checks whether `string` has in it `contains */
-static inline bool string_contains(char *string, const char *contains) {
-  return strstr(string, suffix) != NULL;
+static inline bool string_contains(const char *string, const char *contains) {
+  return strstr(string, contains) != NULL;
 }
 
 /* Returns a pointer to the first whitespace (space or tab) character */
@@ -69,7 +69,7 @@ static inline char *pointer_to_first_format_delim(const char *string) {
 
 /* Returns a pointer to the first non-format character (see above) */
 static inline char *pointer_to_first_non_format_delim(const char *string) {
-  return strcspn(string, "*_~`|[");
+  return strstr(string, "*_~`|[");
 }
 
 /* Returns a pointer to the end of hyperlink name */
@@ -97,3 +97,27 @@ static inline char *pointer_to_first_digit(const char *string) {
   return strpbrk(string, "0123456789");
 }
 
+
+/* The DFA table for Markdown
+ * This is basically like pre-compiled regular expression --- a regular expression which has been
+ * converted to an NFA, simulated, and then converted to a DFA.
+ * The table is described below:
+ * ======================
+ * | State      | Input            | Next State | Output          |
+ * |------------|------------------|------------|-----------------|
+ * | Start      | #                | Header1    | EmitHeader1     |
+ * | Start      | * or - or 1-9    | List       | EmitList        |
+ * | Start      | [                | LinkStart  | -               |
+ * | Header1    | \n               | Start      | -               |
+ * | Header1    | any character    | Header1    | AccumulateText  |
+ * | List       | \n               | Start      | -               |
+ * | List       | any character    | List       | AccumulateText  |
+ * | LinkStart  | any character    | LinkName   | -               |
+ * | LinkName   | ]                | LinkMiddle | -               |
+ * | LinkName   | any character    | LinkName   | AccumulateText  |
+ * | LinkMiddle | (                | LinkURL    | -               |
+ * | LinkMiddle | any character    | LinkName   | -               |
+ * | LinkURL    | )                | Start      | EmitLink        |
+ * | LinkURL    | any character    | LinkURL    | AccumulateText  |
+ * =======================
+*/
