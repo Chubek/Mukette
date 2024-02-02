@@ -110,12 +110,13 @@ static inline char *pointer_to_first_digit(const char *string) {
  * Single characters are enclosed between ' and '
  * Strings are enclosed between " and "
  * Multiple possible characters are enclosed between [ and ]
- * 'space' means whitespace (tab or space)
- * 'epsilon' means any text that does not contain newline
+ * 'epsilon' means any text that does not contain newline --- or the previous tokens in the state
  * 'newline' means \r\n in Windows and \n in Linux
+ * 'exhausted' means the input has been exhausted
 ===============================================================================
 | State           | Input            | Next State       | Output              |
 |-----------------|------------------|------------------|---------------------|
+| AnyState        | exhausted        | LineStart        | GetNewLine          |
 | LineStart       | '#'              | Header1          | - 	  	      |
 | LineStart       | "##"             | Header2          | -         	      |
 | LineStart       | "###"            | Header3          | -         	      |
@@ -124,8 +125,8 @@ static inline char *pointer_to_first_digit(const char *string) {
 | LineStart       | "######"         | Header6          | -         	      |
 | LineStart       | "```"            | CodeListing      | -                   |
 | LineStart       | "!["	     | ImageAlt	 	| -                   |
-| LineStart       | [1-9]+ space -   | ListNumber       | -                   |
-| LineStart       | [*-] space       | ListBullet       | -                   |
+| LineStart       | [1-9]+           | ListNumber       | -                   |
+| LineStart       | [*-]             | ListBullet       | -                   |
 | LineStart       | '|'              | TableCell        | -                   |
 | LineStart       | epsilon  	     | Line   		| -  		      |
 | Line            | '['              | LinkName         | -                   |
@@ -145,9 +146,9 @@ static inline char *pointer_to_first_digit(const char *string) {
 | Header5         | newline          | LineStart        | Header5Action       |
 | Header6         | newline          | LineStart        | Header6Action       |
 | ListNumber      | [0-9]            | ListNumber       | AccumulateText      |
-| ListNumber      | space            | ListItem         | ListNumberAction    |
+| ListNumber      | [\s\t-]          | ListItem         | ListNumberAction    |
 | ListBullet      | [*-]             | ListBullet       | AccumulateText      |
-| ListBullet      | space            | ListItem         | ListBulletAction    |
+| ListBullet      | [\s\t]   	     | ListItem         | ListBulletAction    |
 | ListItem        | epsilon          | ListItem         | AccumulateText      |
 | ListItem        | newline          | LineStart        | ListItemAction      |
 | ImageAlt        | epsilon          | ImageAlt         | AccumulateText      |
@@ -166,7 +167,7 @@ static inline char *pointer_to_first_digit(const char *string) {
 | FormatStart     | '_'              | Italic           | -                   |
 | FormatStart     | "__"             | Bold             | -                   |
 | FormatStart     | "**"             | Bold             | -                   |
-| FormatStart     | '`'              | Code             | -                   |
+| FormatStart     | '`'              | InlineCode       | -                   |
 | FormatStart     | "~~"             | Strikethrough    | -                   |
 | FormatStart     | epsilon          | Line             | -                   |
 | FormatStart     | newline          | Error            | -                   |
@@ -178,9 +179,9 @@ static inline char *pointer_to_first_digit(const char *string) {
 | Bold            | "__"             | Line             | BoldAction          |
 | Bold            | epsilon          | Line             | AccumulateText      |
 | Bold            | newline          | Error            | -                   |
-| Code            | '`'              | Line             | CodeAction          |
-| Code            | epsilon          | Line             | AccumulateText      |
-| Code            | newline          | Error            | -                   |
+| InlineCode      | '`'              | Line    	        | CodeAction          |
+| InlineCode      | epsilon          | Line             | AccumulateText      |
+| InlineCode      | newline          | Error            | -                   |
 | Strikethrough   | "~~"             | Line             | StrikethroughAction |
 | Strikethrough   | epsilon          | StrikeThrough    | AccumulateText      |
 | Strikethrough   | newline          | Error            | -                   |
@@ -191,3 +192,42 @@ static inline char *pointer_to_first_digit(const char *string) {
 | TableSep        | newline          | LineStart        | -                   |
 ===============================================================================
 */
+
+
+enum MarkdownParserState {
+   LINE_START,
+   LINE,
+   HEADER1,
+   HEADER2,
+   HEADER3,
+   HEADER4,
+   HEADER5,
+   HEADER6,
+   LIST_NUMBER,
+   LIST_BULLET,
+   LIST_ITEM,
+   IMAGE_ALT,
+   IMAGE_PATH,
+   LINK_NAME,
+   LINK_PATH,
+   CODE_LISTING,
+   FORMAT_START,
+   ITALIC,
+   BOLD,
+   INLINE_CODE,
+   STRIKETHROUGH,
+   TABLE_CELL,
+   TABLE_SEP,
+   MARKDOWN_PARSER_STATE,
+};
+
+
+
+
+
+
+
+
+
+
+
