@@ -88,127 +88,127 @@ Transition transition_table[] = {
             .next_state = LINE_START,
             .action = LOAD_TEXT,
         },
-
     [LINE_START] =
         (Transition){
             .token = (Token){.kind = LITERAL, .value = "#"},
             .next_state = HEADER1,
             .action = NO_ACTION,
         },
-    [LINE_START] = (Transition){
-        .token = (Token){.kind = LITERAL, .value = "# "},
-        .next_state = HEADER1,
-        .action = NO_ACTION,
-        [LINE_START] = (Transition){
+    [LINE_START] =
+        (Transition){
+            .token = (Token){.kind = LITERAL, .value = "# "},
+            .next_state = HEADER1,
+            .action = NO_ACTION,
+        },
+    [LINE_START] =
+        (Transition){
             .token = (Token){.kind = LITERAL, .value = "## "},
             .next_state = HEADER2,
             .action = NO_ACTION,
-            [LINE_START] = (Transition){
-                .token = (Token){.kind = LITERAL, .value = "### "},
-                .next_state = HEADER3,
-                .action = NO_ACTION,
-                [LINE_START] = (Transition){
-                    .token = (Token){.kind = LITERAL, .value = "#### "},
-                    .next_state = HEADER4,
-                    .action = NO_ACTION,
-                    [LINE_START] = (Transition){
-                        .token = (Token){.kind = LITERAL, .value = "###### "},
-                        .next_state = HEADER5,
-                        .action = NO_ACTION,
-                        [LINE_START] = (Transition){
-                            .token =
-                                (Token){.kind = LITERAL, .value = "###### "},
-                            .next_state = HEADER6,
-                            .action = NO_ACTION,
+        },
+    [LINE_START] =
+        (Transition){
+            .token = (Token){.kind = LITERAL, .value = "### "},
+            .next_state = HEADER3,
+            .action = NO_ACTION,
+        },
+    [LINE_START] =
+        (Transition){
+            .token = (Token){.kind = LITERAL, .value = "#### "},
+            .next_state = HEADER4,
+            .action = NO_ACTION,
+        },
+    [LINE_START] =
+        (Transition){
+            .token = (Token){.kind = LITERAL, .value = "###### "},
+            .next_state = HEADER5,
+            .action = NO_ACTION,
+        },
+    [LINE_START] =
+        (Transition){
+            .token = (Token){.kind = LITERAL, .value = "###### "},
+            .next_state = HEADER6,
+            .action = NO_ACTION,
+        },
 
-                            [HEADER1] =
-                                (Transition){
-                                    .token =
-                                        (Token){.kind = EPSILON, .value = NULL},
-                                    .next_state = HEADER1,
-                                    .action = ACCUMULATE_TEXT,
-                                },
+    [HEADER1] =
+        (Transition){
+            .token = (Token){.kind = EPSILON, .value = NULL},
+            .next_state = HEADER1,
+            .action = ACCUMULATE_TEXT,
+        },
 
-                            [HEADER2] =
-                                (Transition){
-                                    .token =
-                                        (Token){.kind = EPSILON, .value = NULL},
-                                    .next_state = HEADER2,
-                                    .action = ACCUMULATE_TEXT,
-                                },
+    [HEADER2] =
+        (Transition){
+            .token = (Token){.kind = EPSILON, .value = NULL},
+            .next_state = HEADER2,
+            .action = ACCUMULATE_TEXT,
+        },
 
-                            [HEADER3] =
-                                (Transition){
-                                    .token =
-                                        (Token){.kind = EPSILON, .value = NULL},
-                                    .next_state = HEADER3,
-                                    .action = ACCUMULATE_TEXT,
-                                },
+    [HEADER3] =
+        (Transition){
+            .token = (Token){.kind = EPSILON, .value = NULL},
+            .next_state = HEADER3,
+            .action = ACCUMULATE_TEXT,
+        },
 
-                            [HEADER4] =
-                                (Transition){
-                                    .token =
-                                        (Token){.kind = EPSILON, .value = NULL},
-                                    .next_state = HEADER4,
-                                    .action = ACCUMULATE_TEXT,
-                                },
+    [HEADER4] =
+        (Transition){
+            .token = (Token){.kind = EPSILON, .value = NULL},
+            .next_state = HEADER4,
+            .action = ACCUMULATE_TEXT,
+        },
 
-                            [HEADER5] =
-                                (Transition){
-                                    .token =
-                                        (Token){.kind = EPSILON, .value = NULL},
-                                    .next_state = HEADER5,
-                                    .action = ACCUMULATE_TEXT,
-                                },
+    [HEADER5] =
+        (Transition){
+            .token = (Token){.kind = EPSILON, .value = NULL},
+            .next_state = HEADER5,
+            .action = ACCUMULATE_TEXT,
+        },
 
-                            [HEADER6] =
-                                (Transition){
-                                    .token =
-                                        (Token){.kind = EPSILON, .value = NULL},
-                                    .next_state = HEADER6,
-                                    .action = ACCUMULATE_TEXT,
-                                },
+    [HEADER6] =
+        (Transition){
+            .token = (Token){.kind = EPSILON, .value = NULL},
+            .next_state = HEADER6,
+            .action = ACCUMULATE_TEXT,
+        },
 
-                            [LIST_NUMBER] =
-                                (Transition){
-                                    .token = (Token){.kind = CLASS,
-                                                     .value = "[1-9]+"},
-                                    .next_state = LIST_NUMBER,
-                                    .action = ACCUMULATE_TEXT,
-                                },
+    [LIST_NUMBER] =
+        (Transition){
+            .token = (Token){.kind = CLASS, .value = "[1-9]+"},
+            .next_state = LIST_NUMBER,
+            .action = ACCUMULATE_TEXT,
+        },
 
-                            [LIST_BULLET] =
-                                (Transition){
-                                    .token =
-                                        (Token){.kind = CLASS, .value = "[*-]"},
-                                    .next_state = LIST_BULLET,
-                                    .action = ACCUMULATE_TEXT,
-                                },
+    [LIST_BULLET] =
+        (Transition){
+            .token = (Token){.kind = CLASS, .value = "[*-]"},
+            .next_state = LIST_BULLET,
+            .action = ACCUMULATE_TEXT,
+        },
 
-                            [LIST_ITEM] =
-                                (Transition){
-                                    .token = (Token){.kind = NEWLINE},
-                                    .next_state = LINE_START,
-                                    .action = LIST_ITEM_ACTION,
-                                },
+    [LIST_ITEM] =
+        (Transition){
+            .token = (Token){.kind = NEWLINE},
+            .next_state = LINE_START,
+            .action = LIST_ITEM_ACTION,
+        },
 
-                            [IMAGE_ALT] =
-                                (Transition){
-                                    .token =
-                                        (Token){.kind = LITERAL, .value = "!["},
-                                    .next_state = IMAGE_ALT,
-                                    .action = ACCUMULATE_TEXT,
-                                },
+    [IMAGE_ALT] =
+        (Transition){
+            .token = (Token){.kind = LITERAL, .value = "!["},
+            .next_state = IMAGE_ALT,
+            .action = ACCUMULATE_TEXT,
+        },
 
-                            [IMAGE_PATH] =
-                                (Transition){
-                                    .token =
-                                        (Token){.kind = LITERAL, .value = ")"},
-                                    .next_state = LINE_START,
-                                    .action = IMAGE_PATH_ACTION,
-                                },
+    [IMAGE_PATH] =
+        (Transition){
+            .token = (Token){.kind = LITERAL, .value = ")"},
+            .next_state = LINE_START,
+            .action = IMAGE_PATH_ACTION,
+        },
 
-                        };
+};
 
 void parseInput(const char *input) {
   enum State currentState = AnyState;
