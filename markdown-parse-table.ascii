@@ -9,6 +9,7 @@
 +===========================================================================+
 | State           | Input           | Next State      | Action              |
 |------ ----------|-----------------|-----------------|---------------------|
+| AnyState        | Sentinel (EOF)  | LineStart       | LoadText            |
 | LineStart       | '#'             | Header1         | -                   |
 | LineStart       | "##"            | Header2         | -                   |
 | LineStart       | "###"           | Header3         | -                   |
