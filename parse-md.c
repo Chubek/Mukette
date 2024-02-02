@@ -7,31 +7,38 @@
 
 #include "mukette.h"
 
+#ifdef __unix__
+#define SYSTEM_NEWLINE "\n"
+#else
+#define SYSTEM_NEWLINE "\r\n"
+#endif
+
+
 /* The following code is a basic markdown parser. It uses C's standard string functions
  * to parse Standard Markdown. 
  * The PEG grammar for Markdown can be summarized to:
- * ================
- * markdown <- markdown-element+ EOF
- * markdown-element <- formatted-text / table / list / any-text / newline
- * table <- table-item+ newlinetable-sep newlinetable-body newline
- * table-body <- table-item+
- * table-sep <- "|" ( !"|") + "|"
- * table-item <- "|" formated-text "|"
- * list <- (ordered-list-item / unordered-list-item)+
- * ordered-list-item <- [0-9]+ "-" any-text "\n"
- * unordered-list-item <- [*-.] "-" any-text "\n"
- * formatted-text <- hyperlink / strikethrough / bold-italic / bold / italic
- * hyperlink <- "[" hyperlink-name "](" hyperlink-url ")"
- * hyperlink-url <- [(http|https)://]?(www.)? (!".") "." [a-zA-Z]+
- * hyperlink-name <- any-text
- * strikethrough <- "~~" any-text "~~"
- * bold-italic <- [*_]{1} any-text
- * bold <- [*_]{2} .* [*_]{2}
- * italtic-text <- [*_]{1} any-text [*_]{1}
- * any-text <- (!newline)+
- * newline <- [\r\n]{1}
- * EOF <- !.
- * ================
+===========================================================================
+markdown <- markdown-element+ EOF
+markdown-element <- formatted-text / table / list / any-text / newline
+table <- table-item+ newlinetable-sep newlinetable-body newline
+table-body <- table-item+
+table-sep <- "|" ( !"|") + "|"
+table-item <- "|" formated-text "|"
+list <- (ordered-list-item / unordered-list-item)+
+ordered-list-item <- [0-9]+ "-" any-text "\n"
+unordered-list-item <- [*-.] "-" any-text "\n"
+formatted-text <- hyperlink / strikethrough / bold-italic / bold / italic
+hyperlink <- "[" hyperlink-name "](" hyperlink-url ")"
+hyperlink-url <- [(http|https)://]?(www.)? (!".") "." [a-zA-Z]+
+hyperlink-name <- any-text
+strikethrough <- "~~" any-text "~~"
+bold-italic <- [*_]{1} any-text
+bold <- [*_]{2} .* [*_]{2}
+italtic-text <- [*_]{1} any-text [*_]{1}
+any-text <- (!newline)+
+newline <- [\r\n]{1}
+EOF <- !.
+============================================================================
 */
 
 
@@ -98,26 +105,89 @@ static inline char *pointer_to_first_digit(const char *string) {
 }
 
 
-/* The DFA table for Markdown
- * This is basically like pre-compiled regular expression --- a regular expression which has been
- * converted to an NFA, simulated, and then converted to a DFA.
- * The table is described below:
- * ======================
- * | State      | Input            | Next State | Output          |
- * |------------|------------------|------------|-----------------|
- * | Start      | #                | Header1    | EmitHeader1     |
- * | Start      | * or - or 1-9    | List       | EmitList        |
- * | Start      | [                | LinkStart  | -               |
- * | Header1    | \n               | Start      | -               |
- * | Header1    | any character    | Header1    | AccumulateText  |
- * | List       | \n               | Start      | -               |
- * | List       | any character    | List       | AccumulateText  |
- * | LinkStart  | any character    | LinkName   | -               |
- * | LinkName   | ]                | LinkMiddle | -               |
- * | LinkName   | any character    | LinkName   | AccumulateText  |
- * | LinkMiddle | (                | LinkURL    | -               |
- * | LinkMiddle | any character    | LinkName   | -               |
- * | LinkURL    | )                | Start      | EmitLink        |
- * | LinkURL    | any character    | LinkURL    | AccumulateText  |
- * =======================
+/* The parsing table for Markdown
+ * Notations:
+ * Single characters are enclosed between ' and '
+ * Strings are enclosed between " and "
+ * Multiple possible characters are enclosed between [ and ]
+ * 'space' means whitespace (tab or space)
+ * 'epsilon' means any text that does not contain newline
+ * 'newline' means \r\n in Windows and \n in Linux
+===============================================================================
+| State           | Input            | Next State       | Output              |
+|-----------------|------------------|------------------|---------------------|
+| LineStart       | '#'              | Header1          | - 	  	      |
+| LineStart       | "##"             | Header2          | -         	      |
+| LineStart       | "###"            | Header3          | -         	      |
+| LineStart       | "####"           | Header4          | -         	      |
+| LineStart       | "#####"          | Header5          | -         	      |
+| LineStart       | "######"         | Header6          | -         	      |
+| LineStart       | "```"            | CodeListing      | -                   |
+| LineStart       | "!["	     | ImageAlt	 	| -                   |
+| LineStart       | [1-9]+ space -   | ListNumber       | -                   |
+| LineStart       | [*-] space       | ListBullet       | -                   |
+| LineStart       | '|'              | TableCell        | -                   |
+| LineStart       | epsilon  	     | Line   		| -  		      |
+| Line            | '['              | LinkName         | -                   |
+| Line            | [-~_*`]	     | FormatStart      | -                   |
+| Line            | epsilon          | Line             | AccumulateText      |
+| Line            | newline          | LineStart        | LineEndAction       |
+| Header1         | epsilon    	     | Header1          | AccumulateText      |
+| Header2         | epsilon    	     | Header2          | AccumulateText      |
+| Header3         | epsilon    	     | Header3          | AccumulateText      |
+| Header4         | epsilon    	     | Header4          | AccumulateText      |
+| Header5         | epsilon    	     | Header5          | AccumulateText      |
+| Header6         | epsilon    	     | Header6          | AccumulateText      |
+| Header1         | newline          | LineStart        | Header1Action       |
+| Header2         | newline          | LineStart        | Header2Action       |
+| Header3         | newline          | LineStart        | Header3Action       |
+| Header4         | newline          | LineStart        | Header4Action       |
+| Header5         | newline          | LineStart        | Header5Action       |
+| Header6         | newline          | LineStart        | Header6Action       |
+| ListNumber      | [0-9]            | ListNumber       | AccumulateText      |
+| ListNumber      | space            | ListItem         | ListNumberAction    |
+| ListBullet      | [*-]             | ListBullet       | AccumulateText      |
+| ListBullet      | space            | ListItem         | ListBulletAction    |
+| ListItem        | epsilon          | ListItem         | AccumulateText      |
+| ListItem        | newline          | LineStart        | ListItemAction      |
+| ImageAlt        | epsilon          | ImageAlt         | AccumulateText      |
+| ImageAlt        | "]("	     | ImagePath        | ImageAltAction      |
+| ImagePath       | epsilon 	     | ImagePath        | AccumulateText      |
+| ImagePath       | ')'              | LineStart        | ImagePathActio      |
+| ImagePath       | newline          | Error		| -                   |
+| LinkName        | epsilon    	     | LinkName         | AccumulateText      |
+| LinkName        | "]("             | LinkURL          | LinkNameAction      |
+| LinkURL         | epsilon    	     | LinkURL          | AccumulateText      |
+| LinkURL         | ')'              | Line             | LinkURLAction       |
+| LinkURL         | newline          | Error            | -                   |
+| CodeListing     | epsilon/newline  | CodeListing      | AccumulateText      |
+| CodeListing     | "```"	     | LineStart        | CodeListingAction   |
+| FormatStart     | '*'		     | Italic           | -                   | 
+| FormatStart     | '_'              | Italic           | -                   |
+| FormatStart     | "__"             | Bold             | -                   |
+| FormatStart     | "**"             | Bold             | -                   |
+| FormatStart     | '`'              | Code             | -                   |
+| FormatStart     | "~~"             | Strikethrough    | -                   |
+| FormatStart     | epsilon          | Line             | -                   |
+| FormatStart     | newline          | Error            | -                   |
+| Italic          | '*'              | Line             | ItalicAction        |
+| Italic          | '_'              | Line             | ItalicAction        |
+| Italic          | epsilon          | Italic           | AccumulateText      |
+| Italic          | newline          | Error            | -                   |
+| Bold            | "**"             | Line             | BoldAction          |
+| Bold            | "__"             | Line             | BoldAction          |
+| Bold            | epsilon          | Line             | AccumulateText      |
+| Bold            | newline          | Error            | -                   |
+| Code            | '`'              | Line             | CodeAction          |
+| Code            | epsilon          | Line             | AccumulateText      |
+| Code            | newline          | Error            | -                   |
+| Strikethrough   | "~~"             | Line             | StrikethroughAction |
+| Strikethrough   | epsilon          | StrikeThrough    | AccumulateText      |
+| Strikethrough   | newline          | Error            | -                   |
+| TableCell       | epsilon          | TableCell        | AccumulateText      |
+| TableCell       | '|'              | TableCell        | TableCellAction     |
+| TableCell       | newline          | LineStart        | TableRowAction      |
+| TableCell       | '-'              | TableSep         | -                   |
+| TableSep        | newline          | LineStart        | -                   |
+===============================================================================
 */
