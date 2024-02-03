@@ -9,6 +9,8 @@ typedef enum Stat State;
 typedef enum TokenKind TokenKind;
 typedef enum Action Action;
 typedef struct Token Token;
+typedef struct ParserContext ParserContext;
+typedef void (*ParseCallbackFn)(const char*, void*);
 
 enum State {
   ANY_STATE,
@@ -34,6 +36,7 @@ enum State {
   STRIKETHROUGH,
   TABLE_CELL,
   TABLE_SEP,
+  MD_STATE_END,
 };
 
 enum Action {
@@ -62,6 +65,7 @@ enum Action {
   STRIKE_THROUGH_ACTION,
   TABLE_CELL_ACTION,
   TABLE_ROW_ACTION,
+  MD_ACTIION_END,
 };
 
 enum TokenKind {
@@ -83,6 +87,21 @@ struct Transition {
   State next_state;
   Action action;
 };
+
+struct ParserContext {
+  FILE *stream;
+  const char *current_line;
+  size_t line_len;
+  ParseCallbackFn action_callbacks[MD_ACTION_END];
+};
+
+ParserContext *parser_context_create(const char *filepath);
+void parser_context_destroy(ParserContext*);
+void parser_context_load_line(ParserContext*);
+bool parser_context_stream_eof(ParserContext*);
+void parser_context_action_call(ParserContext*, Action action, const char*);
+
+
 
 #include "transtbl.h"
 
