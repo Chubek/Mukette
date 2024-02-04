@@ -11,8 +11,8 @@ ParserContext *create_parser_context(const char *filepath) {
 }
 
 void parser_context_load_line(ParserContext *pctx) {
-  if (getline(&pctx->current_line, &pctx->line_len, pctx->stream) == -1)
-    parser_context_destroy_and_callback(pctx);
+  getline(&pctx->current_line[0], &pctx->line_len, pctx->stream);
+  pctx->current_line[pctx->line_len] = '\0';
 }
 
 void parser_context_bind_trans(ParserContext *pctx, Transition *trans) {
@@ -23,30 +23,32 @@ bool parser_context_stream_eof(ParserContext *pctx) {
   return feof(pctx->stream);
 }
 
+void parser_context_destroy(ParserContext *pctx) {
+  fclose(pctx->stream);
+  free(pctx);
+}
+
 void parse_markdown(const char *filepath) {
   ParserContext *pctx = create_parser_context(filepath);
 
   while (!parser_context_stream_eof(pctx)) {
     parser_context_load_line(pctx);
 
-    while (pctx->current_line != NULL && *pctx->current_line != '\0') {
-      Token current_token;
-      if (match_token(&current_token, pctx->current_line)) {
-        Transition *transition = &transition_table[pctx->current_state];
-
-        if (transition->action != NO_ACTION) {
-          ParseCallBackFn callback = pctx->action_callbacks[transition->action];
-          callback(ctx_token, NULL);
-        }
-
+    char *md_term = strtok(&pctx->current_line[0], " \t");
+    while (md_term != NULL) {
+      Transition *transition = &transition_table[pctx->current_state];
+      Token *token = &transition->token;
+      
+      if (match_token(token, md_term)) {
+        ParseCallbackFn callback = pctx->action_callbacks[transition->action];
+        callback(md_term, pctx->current_state);
         pctx->current_state = transition->next_state;
-        pctx->current_line += strlen(current_token.value);
-      } else {
-	pctx->current_state = ANY_STATE;
-	continue;
       }
+
+      md_term = strtok(NULL, " \t");
     }
   }
 
   parser_context_destroy(pctx);
 }
+
