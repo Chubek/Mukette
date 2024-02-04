@@ -5,12 +5,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define MAX_LINE (1 << 14)
+
 typedef enum Stat State;
 typedef enum TokenKind TokenKind;
 typedef enum Action Action;
 typedef struct Token Token;
 typedef struct ParserContext ParserContext;
-typedef void (*ParseCallbackFn)(const char*, void*);
+typedef void (*ParseCallbackFn)(const char *, void *);
 
 enum State {
   ANY_STATE,
@@ -90,18 +92,17 @@ struct Transition {
 
 struct ParserContext {
   FILE *stream;
-  const char *current_line;
+  const char current_line[MAX_LINE];
   size_t line_len;
+  State current_state;
   ParseCallbackFn action_callbacks[MD_ACTION_END];
 };
 
 ParserContext *parser_context_create(const char *filepath);
-void parser_context_destroy(ParserContext*);
-void parser_context_load_line(ParserContext*);
-bool parser_context_stream_eof(ParserContext*);
-void parser_context_action_call(ParserContext*, Action action, const char*);
-
-
+void parser_context_destroy(ParserContext *);
+void parser_context_load_line(ParserContext *);
+bool parser_context_stream_eof(ParserContext *);
+void parser_context_action_call(ParserContext *, Action action, const char *);
 
 #include "transtbl.h"
 
