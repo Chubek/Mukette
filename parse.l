@@ -2,8 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "pager.h"
 
+char *last_table_cell = NULL;
 char *last_list_point = NULL;
 char *last_hyperlink_name = NULL;
 
@@ -18,19 +20,20 @@ size_t num_code = 0;
 
 %%
 
-^\.              { BEGIN LineStart;  }
-^#[ \t]+        { BEGIN Header1; turn_on_color(COLOR_PAIR_H1); }
-^##[ \t]+       { BEGIN Header2; turn_on_color(COLOR_PAIR_H2); }
-^###[ \t]+      { BEGIN Header3; turn_on_color(COLOR_PAIR_H3); }
-^####[ \t]+     { BEGIN Header4; turn_on_color(COLOR_PAIR_H4); }
-^#####[ \t]+    { BEGIN Header5; turn_on_color(COLOR_PAIR_H5); }
-^######[ \t]+   { BEGIN Header6; turn_on_color(COLOR_PAIR_H6);  }
-^```$          { BEGIN CodeListing; }
-!\[             { BEGIN ImageAlt; }
-[1-9]+          { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng);  }
-[*-]            { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng); }
-\|             { BEGIN TableCell; }
-.              { BEGIN Line; printf("-\n");}
+^\.                { BEGIN LineStart;  }
+^#[ \t]+           { BEGIN Header1; turn_on_color(COLOR_PAIR_H1); }
+^##[ \t]+          { BEGIN Header2; turn_on_color(COLOR_PAIR_H2); }
+^###[ \t]+         { BEGIN Header3; turn_on_color(COLOR_PAIR_H3); }
+^####[ \t]+        { BEGIN Header4; turn_on_color(COLOR_PAIR_H4); }
+^#####[ \t]+       { BEGIN Header5; turn_on_color(COLOR_PAIR_H5); }
+^######[ \t]+      { BEGIN Header6; turn_on_color(COLOR_PAIR_H6);  }
+^```$          	   { BEGIN CodeListing; }
+^!\[               { BEGIN ImageAlt; }
+^[1-9]+[ \t]+"-"   { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng);  }
+^[*-]              { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng); }
+^\|                { BEGIN TableCell; }
+.              	   { BEGIN Line; }
+\n	       	   { print_newline(); }
 
 <Line>{
     "["         { BEGIN LinkName; }
@@ -108,61 +111,71 @@ size_t num_code = 0;
 }
 
 <FormatStart>{
-    "*"         {BEGIN Italic; printf("-\n");}
-    "_"         {BEGIN Italic; printf("-\n");}
-    "__"        {BEGIN Bold; printf("-\n");}
-    "**"        {BEGIN Bold; printf("-\n");}
-    "`"         {BEGIN InlineCode; printf("-\n");}
-    "~~"        {BEGIN Strikethrough; printf("-\n");}
-    .+          {printf("AccumulateText\n");}
-    [\n]+       {BEGIN Error; printf("-\n");}
+    "*"         { BEGIN Italic; turn_on_italic(); }
+    "_"         { BEGIN Italic; turn_on_italic(); }
+    "__"        { BEGIN Bold; turn_on_bold();  }
+    "**"        { BEGIN Bold; turn_on_bold(); }
+    "`"         { BEGIN InlineCode; turn_on_bold_underline(); }
+    "~~"        { BEGIN Strikethrough; turn_on_underline(); }
+    .+          { print_text(&yytext[0]);}
+    [\n]+       { BEGIN Error; printf("-\n"); }
 }
 
 <Italic>{
-    "*"         {BEGIN Line; printf("ItalicAction\n");}
-    "_"         {BEGIN Line; printf("ItalicAction\n");}
-    [\n]+       {BEGIN Error; printf("-\n");}
-    .+          {printf("AccumulateText\n");}
+    "*"         { BEGIN Line; turn_off_italic(); }
+    "_"         { BEGIN Line; turn_off_italic(); }
+    [\n]+       { BEGIN Error; }
+    .+          { print_text(&yytext[0]); }
 }
 
 <Bold>{
-    "**"        {BEGIN Line; printf("BoldAction\n");}
-    "__"        {BEGIN Line; printf("BoldAction\n");}
-    [\n]+       {BEGIN Error; printf("-\n");}
-    .+          {printf("AccumulateText\n");}
+    "**"        { BEGIN Line; turn_off_bold(); }
+    "__"        { BEGIN Line; turn_off_bold(); }
+    [\n]+       { BEGIN Error; }
+    .+          { print_text(&yytext[0]); }
 }
 
 <InlineCode>{
-    "`"         {BEGIN Line; printf("CodeAction\n");}
-    [\n]+       {BEGIN Error; printf("-\n");}
-    .+          {printf("AccumulateText\n");}
+    "`"         { BEGIN Line; turn_off_bold_underline(); }
+    [\n]+       { BEGIN Error; }
+    .+          { print_text(&yytext[0]); }
 }
 
 <Strikethrough>{
-    "~~"        {BEGIN Line; printf("StrikethroughAction\n");}
-    [\n]+       {BEGIN Error; printf("-\n");}
-    .+          {printf("AccumulateText\n");}
+    "~~"        { BEGIN Line; turn_off_underline(); }
+    [\n]+       { BEGIN Error; }
+    .+          { print_text(&yytext[0]); }
 }
 
 <TableCell>{
-    "|"         {printf("TableCellAction\n");}
-    [\n]+       {printf("-\n");}
-    .+          {printf("AccumulateText\n");}
+    "|\n"	{ add_table_cell(last_table_cell, true); free(last_table_cell);  }
+    "|"         { add_table_cell(last_table_cell, false); free(last_table_cell); }
+    [\n]+       { BEGIN LineStart;  }
+    .+          { last_table_cell = strndup(&yytext[0], yyleng); }
 }
 
 <TableSep>{
-    [\n]+       {BEGIN LineStart; printf("-\n");}
+    [\n]+       { BEGIN LineStart;}
 }
 
 <Error>{
-    [\n]+       {BEGIN LineStart; printf("-\n");}
-    .+          {printf("-\n");}
+    .		{ yyerror("Parse error ocurred"); }
 }
 
 %%
 
+void yyerror(const char *msg) {
+  fprintf(stderr, "%s\n", msg);
+  exit(EXIT_FAILURE);
+}
+
 int main() {
+    atexit(free_subwins);
+
+    initscr();
     yylex();
+    poll_and_navigate();
+    
     return 0;
 }
 
