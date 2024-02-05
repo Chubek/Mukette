@@ -1,0 +1,82 @@
+* The parsing table for Markdown
+
+
++===========================================================================+
+| State           | Regex for Input | Next State      | Action              |
+|------ ----------|-----------------|-----------------|---------------------|
+| Initial         | ^.              | LineStart       | LoadText            |
+| LineStart       | ^#[ \t]+        | Header1         | -                   |
+| LineStart       | ^##[ \t]+       | Header2         | -                   |
+| LineStart       | ^###[ \t]+      | Header3         | -                   |
+| LineStart       | ^####[ \t]+     | Header4         | -                   |
+| LineStart       | ^#####[ \t]+    | Header5         | -                   |
+| LineStart       | ^######[ \t]+   | Header6         | -                   |
+| LineStart       | /^```$          | CodeListing     | -                   |
+| LineStart       | "!["            | ImageAlt        | -                   |
+| LineStart       | [1-9]+          | ListNumber      | -                   |
+| LineStart       | [*-]            | ListBullet      | -                   |
+| LineStart       | '|'             | TableCell       | -                   |
+| LineStart       | .+              | Line            | -                   |
+| Line            | '['             | LinkName        | -                   |
+| Line            | [-~_*`]         | FormatStart     | -                   |
+| Line            | .+              | Line            | AccumulateText      |
+| Line            | [\n]+           | LineStart       | LineEndAction       |
+| Header1         | .+              | Header1         | AccumulateText      |
+| Header2         | .+              | Header2         | AccumulateText      |
+| Header3         | .+              | Header3         | AccumulateText      |
+| Header4         | .+              | Header4         | AccumulateText      |
+| Header5         | .+              | Header5         | AccumulateText      |
+| Header6         | .+              | Header6         | AccumulateText      |
+| Header1         | [\n]+           | LineStart       | Header1Action       |
+| Header2         | [\n]+           | LineStart       | Header2Action       |
+| Header3         | [\n]+           | LineStart       | Header3Action       |
+| Header4         | [\n]+           | LineStart       | Header4Action       |
+| Header5         | [\n]+           | LineStart       | Header5Action       |
+| Header6         | [\n]+           | LineStart       | Header6Action       |
+| ListNumber      | [0-9]           | ListNumber      | AccumulateText      |
+| ListNumber      | [\s\t-]         | ListItem        | ListNumberAction    |
+| ListBullet      | [*-]            | ListBullet      | AccumulateText      |
+| ListBullet      | [\s\t]          | ListItem        | ListBulletAction    |
+| ListItem        | .+              | ListItem        | AccumulateText      |
+| ListItem        | [\n]+           | LineStart       | ListItemAction      |
+| ImageAlt        | .+              | ImageAlt        | AccumulateText      |
+| ImageAlt        | "]("            | ImagePath       | ImageAltAction      |
+| ImagePath       | .+              | ImagePath       | AccumulateText      |
+| ImagePath       | ')'             | LineStart       | ImagePathAction     |
+| ImagePath       | [\n]+           | Error           | -                   |
+| LinkName        | .+              | LinkName        | AccumulateText      |
+| LinkName        | "]("            | LinkURL         | LinkNameAction      |
+| LinkURL         | .+              | LinkURL         | AccumulateText      |
+| LinkURL         | ')'             | Line            | LinkURLAction       |
+| LinkURL         | [\n]+           | Error           | -                   |
+| CodeListing     | ^.+$            | CodeListing     | AccumulateText      |
+| CodeListing     | "```"           | LineStart       | CodeListingAction   |
+| FormatStart     | '*'             | Italic          | -                   | 
+| FormatStart     | '_'             | Italic          | -                   |
+| FormatStart     | "__"            | Bold            | -                   |
+| FormatStart     | "**"            | Bold            | -                   |
+| FormatStart     | '`'             | InlineCode      | -                   |
+| FormatStart     | "~~"            | Strikethrough   | -                   |
+| FormatStart     | .+              | Line            | -                   |
+| FormatStart     | [\n]+           | Error           | -                   |
+| Italic          | '*'             | Line            | ItalicAction        |
+| Italic          | '_'             | Line            | ItalicAction        |
+| Italic          | .+              | Italic          | AccumulateText      |
+| Italic          | [\n]+           | Error           | -                   |
+| Bold            | "**"            | Line            | BoldAction          |
+| Bold            | "__"            | Line            | BoldAction          |
+| Bold            | .+              | Line            | AccumulateText      |
+| Bold            | [\n]+           | Error           | -                   |
+| InlineCode      | '`'             | Line            | CodeAction          |
+| InlineCode      | .+              | Line            | AccumulateText      |
+| InlineCode      | [\n]+           | Error           | -                   |
+| Strikethrough   | "~~"            | Line            | StrikethroughAction |
+| Strikethrough   | .+              | StrikeThrough   | AccumulateText      |
+| Strikethrough   | [\n]+           | Error           | -                   |
+| TableCell       | .+              | TableCell       | AccumulateText      |
+| TableCell       | '|'             | TableCell       | TableCellAction     |
+| TableCell       | [\n]+           | LineStart       | TableRowAction      |
+| TableCell       | '-'             | TableSep        | -                   |
+| TableSep        | [\n]+           | LineStart       | -                   |
++===========================================================================+
+
