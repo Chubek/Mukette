@@ -2,6 +2,12 @@
 #define PAGER_H
 
 #include <curses.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <spawn.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #define MAX_SUBWIN 512
 #define MAX_LINK 4096
@@ -35,6 +41,23 @@ size_t curr_cell = 0;
 
 WINDOW *subwins[MAX_SUBWIN];
 size_t curr_subwin = 0;
+
+void navigate_to_addr(const char *link) {
+    char *const argv[] = { "xdg-open", (char*)link, NULL };
+    posix_spawn_file_actions_t file_actions;
+
+    posix_spawn_file_actions_init(&file_actions);
+
+    pid_t pid;
+    if (posix_spawnp(&pid, "xdg-open", &file_actions, NULL, argv, NULL) == 0) {
+        waitpid(pid, NULL, 0);
+    } else {
+        perror("posix_spawnp");
+    }
+
+    posix_spawn_file_actions_destroy(&file_actions);
+}
+
 
 static void poll_and_wait_link_action(const char *addr) {
   int c = 0;
@@ -131,7 +154,7 @@ static inline void print_horiz_line(void) {
 static inline void print_header(const char *text) {
   int y, x;
   getyx(stdscr, y, x);
-  mvprintw(y, 1, text);
+  mvprintw(y, 1, "%s\n", text);
   print_horiz_line();
 }
 
@@ -178,7 +201,7 @@ static inline void print_hyperlink(const char *name, const char *addr) {
   getyx(stdscr, y, x);
   links[curr_link++] =
       (struct Hyperlink){.y = y, .x = x, .len = strlen(name), .addr = {0}};
-  strncat(&links[curr_link - 1].addr[0], addr[0], MAX_ADDR);
+  strncat(&links[curr_link - 1].addr[0], &addr[0], MAX_ADDR);
   print_text(name);
 }
 
@@ -193,7 +216,7 @@ static inline void navigate_hyperlinks(int y, int x) {
     link = &links[i];
     if (link->y == y && is_approaching(link->x, x, link->len)) {
       turn_on_reverse();
-      mvprintw(link->y, link->x, &link->addr[0]);
+      mvprintw(link->y, link->x, "%s", &link->addr[0]);
       poll_and_wait_link_action(&link->addr[0]);
       turn_off_reverse();
       return;
@@ -202,7 +225,7 @@ static inline void navigate_hyperlinks(int y, int x) {
   }
 }
 
-static inline void display_code_listing(const char **code, int lines) {
+static inline void display_code_listing(char **code, int lines) {
   int y, x;
   int my, mx;
   getyx(stdscr, y, x);
@@ -216,7 +239,7 @@ static inline void display_code_listing(const char **code, int lines) {
   wattron(code_win, COLOR_PAIR(CODE_COLOR_PAIR));
 
   for (int yy = 0; yy < lines; yy++) {
-    mvwprintw(code_win, yy, 1, code[yy]);
+    mvwprintw(code_win, yy, 1, "%s", code[yy]);
   }
 }
 
