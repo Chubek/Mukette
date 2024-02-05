@@ -6,7 +6,7 @@
 #define MAX_SUBWIN 512
 #define MAX_LINK 4096
 #define MAX_ADDR 256
-#define MAX_CONENTS 512
+#define MAX_CONTENTS 512
 #define MAX_CELL 1024
 
 #define LINES_OFFS 2
@@ -17,23 +17,23 @@
 #define COLOR_PAIR_H3 3
 #define COLOR_PAIR_H4 4
 #define COLOR_PAIR_H5 5
-#define COLOR_PAIR_h6 6
+#define COLOR_PAIR_H6 6
 #define CODE_COLOR_PAIR 7
 
-struct Hyperlink {
+static struct Hyperlink {
   int y, x, len;
-  const char addr[MAX_ADDR];
+  char addr[MAX_ADDR];
 } links[MAX_LINK];
 size_t curr_link = 0;
 
-struct TableCell {
-  int row, cell;
+static struct TableCell {
+  int row, col;
   bool breaks;
-  const char contents[MAX_CELL];
+  char contents[MAX_CELL];
 } cells[MAX_CELL];
 size_t curr_cell = 0;
 
-WINDOWS *subwins[MAX_SUBWIN];
+WINDOW *subwins[MAX_SUBWIN];
 size_t curr_subwin = 0;
 
 static void poll_and_wait_link_action(const char *addr) {
@@ -57,6 +57,8 @@ static void poll_and_wait_link_action(const char *addr) {
     refresh();
   }
 }
+
+static inline void navigate_hyperlinks(int, int);
 
 static void poll_and_navigate(void) {
   int c = 0;
@@ -123,12 +125,12 @@ static inline void init_color_h6(void) {
 static inline void print_horiz_line(void) {
   int y, x;
   getyx(stdscr, y, x);
-  mvhline(y, 1, ASC_HLINE, 20);
+  mvhline(y, 1, ACS_HLINE, 20);
 }
 
 static inline void print_header(const char *text) {
   int y, x;
-  getyx(stdscr, y, ix);
+  getyx(stdscr, y, x);
   mvprintw(y, 1, text);
   print_horiz_line();
 }
@@ -153,19 +155,22 @@ static inline void turn_on_reverse(void) { attron(A_REVERSE); }
 
 static inline void turn_off_reverse(void) { attroff(A_REVERSE); }
 
-static inline void turn_on_bold_underline(void) { attron(A_BOLD | A_UNDERLINE); }
+static inline void turn_on_bold_underline(void) {
+  attron(A_BOLD | A_UNDERLINE);
+}
 
-static inline void turn_off_bold_underline(void) { attroff(A_BOLD | A_UNDERLINE); }
+static inline void turn_off_bold_underline(void) {
+  attroff(A_BOLD | A_UNDERLINE);
+}
 
 static inline void print_text(const char *text) { printw("%s", text); }
 
-static inline void print_newline(void) { addchr('\n'); }
+static inline void print_newline(void) { addch('\n'); }
 
 static inline void print_list_item(const char *point, const char *item) {
   int y, x;
   getyx(stdscr, y, x);
   mvprintw(y, 1, "%s - %s\n", point, item);
-  free(point);
 }
 
 static inline void print_hyperlink(const char *name, const char *addr) {
@@ -184,7 +189,8 @@ bool is_approaching(int target, int value, int tolerance) {
 static inline void navigate_hyperlinks(int y, int x) {
   struct Hyperlink *link;
   size_t i = 0;
-  while (link = &links[i]; i < curr_link; link = &links[++i]) {
+  while (i < curr_link) {
+    link = &links[i];
     if (link->y == y && is_approaching(link->x, x, link->len)) {
       turn_on_reverse();
       mvprintw(link->y, link->x, &link->addr[0]);
@@ -192,8 +198,7 @@ static inline void navigate_hyperlinks(int y, int x) {
       turn_off_reverse();
       return;
     }
-
-    refresh();
+    i++;
   }
 }
 
@@ -203,17 +208,15 @@ static inline void display_code_listing(const char **code, int lines) {
   getyx(stdscr, y, x);
   getmaxyx(stdscr, my, mx);
 
-  WINDOW *code_win = subwins[curr_subwin++] = newwin(lines + LINES_OFFS, 
-		  					mx + COLS_OFFS, 
-							y, x);
-  scrollok(code_win);
+  WINDOW *code_win = subwins[curr_subwin++] =
+      newwin(lines + LINES_OFFS, mx + COLS_OFFS, y, x);
+  scrollok(code_win, false);
 
   init_pair(CODE_COLOR_PAIR, COLOR_WHITE, COLOR_BLACK);
   wattron(code_win, COLOR_PAIR(CODE_COLOR_PAIR));
 
   for (int yy = 0; yy < lines; yy++) {
-	mvprintw(code_win, yy, 1, code[yy]);
-	free(code[yy]);
+    mvwprintw(code_win, yy, 1, code[yy]);
   }
 }
 
@@ -224,32 +227,32 @@ static inline void display_table(void) {
   int rows = cells[curr_cell].row;
   int cols = cells[curr_cell].col;
 
-  WINDOW *table_win = subwins[curr_subwin++] = newwin(lines, 
-		  					rows + LINES_OFFS,
-							cols + COLS_OFFS,
-							y, x);
+  WINDOW *table_win = subwins[curr_subwin++] =
+      newwin(rows + LINES_OFFS, cols + COLS_OFFS, y, x);
+  scrollok(table_win, false);
 
   for (int r = 0; r < rows; r++) {
-	for (int c = 0; c < cols; c++) {
-		wmvprintw(table_win, "| %s |", &cells[r + c].contents[0]);
-		if (cells[r + c].breaks)
-			print_newline();
-	}
+    for (int c = 0; c < cols; c++) {
+      mvwprintw(table_win, r, c * MAX_CONTENTS + 1, "| %s |",
+                &cells[r * cols + c].contents[0]);
+      if (cells[r * cols + c].breaks)
+        print_newline();
+    }
   }
-
 }
 
 static inline void add_table_cell(const char *contents, bool breaks) {
-  cells[curr_cell + 1] = (struct TableCell){ .row = cells[curr_cell].row + 1,
-	  				     .cell = cells[curr_cell].col + 1,
-					     .breaks = breaks,
-					     .contents = {0}};
-  strncat(&cells[++curr_cell].contents[0], contents, MAX_CONTENTS);
+  cells[curr_cell] = (struct TableCell){.row = cells[curr_cell].row,
+                                        .col = cells[curr_cell].col,
+                                        .breaks = breaks,
+                                        .contents = {0}};
+  strncat(cells[curr_cell].contents, contents, MAX_CONTENTS);
+  curr_cell++;
 }
 
 static inline void blank_out_table_cells(void) {
   while (--curr_cell)
-	  memset(cells[curr_cell], 0, sizeof(struct TableCell));
+    memset(&cells[curr_cell], 0, sizeof(struct TableCell));
 }
 
 static void free_subwins(void) {
