@@ -151,11 +151,14 @@ static inline void print_horiz_line(void) {
   mvhline(y, 1, ACS_HLINE, 20);
 }
 
+static inline void print_newline(void);
+
 static inline void print_header(const char *text) {
   int y, x;
   getyx(stdscr, y, x);
   mvprintw(y, 1, "%s\n", text);
   print_horiz_line();
+  print_newline();
 }
 
 static inline void turn_on_color(int icolor) { attron(COLOR_PAIR(icolor)); }
@@ -186,7 +189,7 @@ static inline void turn_off_bold_underline(void) {
   attroff(A_BOLD | A_UNDERLINE);
 }
 
-static inline void print_text(const char *text) { printw("%s", text); }
+static inline void print_text(const char *text) { addstr(text); }
 
 static inline void print_newline(void) { addch('\n'); }
 
