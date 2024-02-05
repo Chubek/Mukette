@@ -12,6 +12,8 @@ char *last_hyperlink_name = NULL;
 char **code = NULL;
 size_t num_code = 0;
 
+void yyerror(const char*);
+
 %}
 
 %option noyywrap
@@ -84,7 +86,7 @@ size_t num_code = 0;
 
 <ImagePath>{
     ")"         { BEGIN LineStart; }
-    .+          { const char *addr = strndup(&yytext[0], yyleng);
+    .+          { char *addr = strndup(&yytext[0], yyleng);
     				print_hyperlink(last_hyperlink_name, addr);
 				free(addr); free(last_hyperlink_name); }
     [\n]+       { BEGIN Error; }
@@ -97,7 +99,7 @@ size_t num_code = 0;
 
 <LinkURL>{
     ")"        { BEGIN Line; }
-   .+          { const char *addr = strndup(&yytext[0], yyleng);
+   .+          { char *addr = strndup(&yytext[0], yyleng);
    				print_hyperlink(last_hyperlink_name, addr);
 				free(addr); free(last_hyperlink_name);  }
    [\n]+       { BEGIN Error; }
