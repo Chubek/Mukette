@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <setjmp.h>
 
 #define MAX_SUBWIN 512
 #define MAX_LINK 4096
@@ -42,6 +43,36 @@ size_t curr_cell = 0;
 WINDOW *subwins[MAX_SUBWIN];
 size_t curr_subwin = 0;
 
+jmp_buf jbuf = {0};
+
+
+static inline void initialize_screen(void) {
+    initscr();
+    
+    if (has_colors() == FALSE) {
+        endwin();
+        fprintf(stderr, "Your terminal does not support color\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (start_color() != OK) {
+        endwin();
+        fprintf(stderr, "Unable to start color\n");
+        exit(EXIT_FAILURE);
+    }
+
+    cbreak();
+    keypad(stdscr, TRUE);
+    noecho();
+    curs_set(TRUE);
+}
+
+
+static inline void destroy_screen(void) {
+   endwin();
+   exit(EXIT_SUCCESS);
+}
+
 void navigate_to_addr(const char *link) {
     char *const argv[] = { "xdg-open", (char*)link, NULL };
     posix_spawn_file_actions_t file_actions;
@@ -59,67 +90,58 @@ void navigate_to_addr(const char *link) {
 }
 
 
-static void poll_and_wait_link_action(const char *addr) {
+void poll_and_wait_link_action(const char *addr) {
   int c = 0;
   while ((c = getch()) != KEY_F(1)) {
+    refresh();
     switch (c) {
-    case KEY_UP:
-    case KEY_DOWN:
-    case KEY_LEFT:
-    case KEY_RIGHT:
-      return;
-    case KEY_COMMAND:
-    case KEY_SELECT:
-    case KEY_STAB:
-    case KEY_FIND:
+    case KEY_ENTER:
       navigate_to_addr(addr);
+      break;
     default:
-      return;
+      longjmp(jbuf, 1);
     }
-
-    refresh();
   }
 }
 
-static inline void navigate_hyperlinks(int, int);
+static inline void navigate_hyperlinks(int y, int x);
 
-static void poll_and_navigate(void) {
-  int c = 0;
-  int y, x;
-  int my, mx;
-  getyx(stdscr, y, x);
-  getmaxyx(stdscr, my, mx);
-  while ((c = getch()) != KEY_F(1)) {
-    switch (c) {
-    case KEY_UP:
-      y += (y + 1) > my ? 0 : 1;
-      move(y, x);
-      navigate_hyperlinks(y, x);
-      break;
-    case KEY_DOWN:
-      y -= (y - 1) < 0 ? 0 : 1;
-      move(y, x);
-      navigate_hyperlinks(y, x);
-      break;
-    case KEY_RIGHT:
-      x += (x + 1) > mx ? 0 : 1;
-      move(y, x);
-      navigate_hyperlinks(y, x);
-      break;
-    case KEY_LEFT:
-      x += (x - 1) < 0 ? 0 : 1;
-      move(y, x);
-      navigate_hyperlinks(y, x);
-      break;
-    case KEY_EXIT:
-      exit(EXIT_SUCCESS);
-      break;
-    default:
-      break;
+void poll_and_navigate(void) {
+    int c = 0;
+    int y, x;
+    int my, mx;
+    getyx(stdscr, y, x);
+    getmaxyx(stdscr, my, mx);
+
+    while ((c = getch()) != KEY_F(1)) {
+        switch (c) {
+            case KEY_UP:
+                y--;
+                break;
+            case KEY_DOWN:
+                y++;
+                break;
+            case KEY_RIGHT:
+                x++;
+                break;
+            case KEY_LEFT:
+                x--;
+                break;
+            default:
+                break;
+        }
+
+        y = (y < 0) ? 0 : (y >= my) ? my - 1 : y;
+        x = (x < 0) ? 0 : (x >= mx) ? mx - 1 : x;
+
+        move(y, x);
+        refresh();
+        navigate_hyperlinks(y, x);
     }
-    refresh();
-  }
+
+    destroy_screen();
 }
+
 
 static inline void init_color_h1(void) {
   init_pair(COLOR_PAIR_H1, COLOR_BLUE, COLOR_BLACK);
@@ -205,7 +227,7 @@ static inline void print_hyperlink(const char *name, const char *addr) {
   links[curr_link++] =
       (struct Hyperlink){.y = y, .x = x, .len = strlen(name), .addr = {0}};
   strncat(&links[curr_link - 1].addr[0], &addr[0], MAX_ADDR);
-  print_text(name);
+  addstr(name);
 }
 
 bool is_approaching(int target, int value, int tolerance) {
