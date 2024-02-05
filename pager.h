@@ -6,6 +6,9 @@
 #define MAX_SUBWIN 512
 #define MAX_LINK 4096
 #define MAX_ADDR 256
+#define MAX_CONENTS 512
+#define MAX_CELL 1024
+
 #define LINES_OFFS 2
 #define COLS_OFFS 6
 
@@ -22,6 +25,13 @@ struct Hyperlink {
   const char addr[MAX_ADDR];
 } links[MAX_LINK];
 size_t curr_link = 0;
+
+struct TableCell {
+  int row, cell;
+  bool breaks;
+  const char contents[MAX_CELL];
+} cells[MAX_CELL];
+size_t curr_cell = 0;
 
 WINDOWS *subwins[MAX_SUBWIN];
 size_t curr_subwin = 0;
@@ -143,6 +153,10 @@ static inline void turn_on_reverse(void) { attron(A_REVERSE); }
 
 static inline void turn_off_reverse(void) { attroff(A_REVERSE); }
 
+static inline void turn_on_bold_underline(void) { attron(A_BOLD | A_UNDERLINE); }
+
+static inline void turn_off_bold_underline(void) { attroff(A_BOLD | A_UNDERLINE); }
+
 static inline void print_text(const char *text) { printw("%s", text); }
 
 static inline void print_newline(void) { addchr('\n'); }
@@ -172,10 +186,10 @@ static inline void navigate_hyperlinks(int y, int x) {
   size_t i = 0;
   while (link = &links[i]; i < curr_link; link = &links[++i]) {
     if (link->y == y && is_approaching(link->x, x, link->len)) {
-      attron(A_REVERSE);
+      turn_on_reverse();
       mvprintw(link->y, link->x, &link->addr[0]);
       poll_and_wait_link_action(&link->addr[0]);
-      attroff(A_REVERSE);
+      turn_off_reverse();
       return;
     }
 
@@ -201,6 +215,41 @@ static inline void display_code_listing(const char **code, int lines) {
 	mvprintw(code_win, yy, 1, code[yy]);
 	free(code[yy]);
   }
+}
+
+static inline void display_table(void) {
+  int y, x;
+  getyx(stdscr, y, x);
+
+  int rows = cells[curr_cell].row;
+  int cols = cells[curr_cell].col;
+
+  WINDOW *table_win = subwins[curr_subwin++] = newwin(lines, 
+		  					rows + LINES_OFFS,
+							cols + COLS_OFFS,
+							y, x);
+
+  for (int r = 0; r < rows; r++) {
+	for (int c = 0; c < cols; c++) {
+		wmvprintw(table_win, "| %s |", &cells[r + c].contents[0]);
+		if (cells[r + c].breaks)
+			print_newline();
+	}
+  }
+
+}
+
+static inline void add_table_cell(const char *contents, bool breaks) {
+  cells[curr_cell + 1] = (struct TableCell){ .row = cells[curr_cell].row + 1,
+	  				     .cell = cells[curr_cell].col + 1,
+					     .breaks = breaks,
+					     .contents = {0}};
+  strncat(&cells[++curr_cell].contents[0], contents, MAX_CONTENTS);
+}
+
+static inline void blank_out_table_cells(void) {
+  while (--curr_cell)
+	  memset(cells[curr_cell], 0, sizeof(struct TableCell));
 }
 
 static void free_subwins(void) {
