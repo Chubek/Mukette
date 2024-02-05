@@ -18,65 +18,119 @@ void yyerror(const char*);
 
 %option noyywrap
 
-%x LineStart Line ImagePath Header1 Header2 Header3 Header4 Header5 Header6 CodeListing ImageAlt ListNumber ListBullet ListItem LinkName LinkURL FormatStart Italic Bold InlineCode Strikethrough TableCell TableSep Error
+%x Line ImagePath Header1 Header2 Header3 Header4 Header5 Header6 CodeListing ImageAlt ListNumber ListBullet ListItem LinkName LinkURL FormatStart Italic Bold BoldItalic InlineCode Strikethrough TableCell TableSep Error
 
 %%
 
-^\.                { BEGIN LineStart;  }
-^#[ \t]+           { BEGIN Header1; turn_on_color(COLOR_PAIR_H1); }
-^##[ \t]+          { BEGIN Header2; turn_on_color(COLOR_PAIR_H2); }
-^###[ \t]+         { BEGIN Header3; turn_on_color(COLOR_PAIR_H3); }
-^####[ \t]+        { BEGIN Header4; turn_on_color(COLOR_PAIR_H4); }
-^#####[ \t]+       { BEGIN Header5; turn_on_color(COLOR_PAIR_H5); }
-^######[ \t]+      { BEGIN Header6; turn_on_color(COLOR_PAIR_H6);  }
+^#[ \t]+           { BEGIN Header1; turn_on_color(COLOR_PAIR_H1); turn_on_bold(); }
+^##[ \t]+          { BEGIN Header2; turn_on_color(COLOR_PAIR_H2); turn_on_bold(); }
+^###[ \t]+         { BEGIN Header3; turn_on_color(COLOR_PAIR_H3); turn_on_bold(); }
+^####[ \t]+        { BEGIN Header4; turn_on_color(COLOR_PAIR_H4); turn_on_bold(); }
+^#####[ \t]+       { BEGIN Header5; turn_on_color(COLOR_PAIR_H5); turn_on_bold(); }
+^######[ \t]+      { BEGIN Header6; turn_on_color(COLOR_PAIR_H6); turn_on_bold(); }
 ^```$          	   { BEGIN CodeListing; }
-^!\[               { BEGIN ImageAlt; }
+^"|"                { BEGIN TableCell; }
+^"!["               { BEGIN ImageAlt; }
 ^[1-9]+[ \t]+"-"   { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng);  }
-^[*-]              { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng); }
-^\|                { BEGIN TableCell; }
-.              	   { BEGIN Line; }
-\n	       	   { print_newline(); }
+^"*"[ \t]+|"-"[ \t]+ { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng); }
+^[^#`0-9\*\-]	{ BEGIN Line; addch(*yytext); }
 
 <Line>{
     "["         { BEGIN LinkName; }
-    [-~_*`]     { BEGIN FormatStart; }
-    [\n]+       { BEGIN LineStart; print_newline(); }
-    .+          { print_text(&yytext[0]); }
+    [-~_*`]{1,3}   { 
+    
+			if (!strncmp(&yytext[0], "***", 3)) {
+					turn_on_bold(); turn_on_italic();
+					BEGIN(BoldItalic);
+				}
+			else if (!strncmp(&yytext[0], "___", 3)) {
+					turn_on_bold(); turn_on_italic();
+					BEGIN(BoldItalic);
+				}
+
+			else if (!strncmp(&yytext[0], "**", 2)) {
+					turn_on_bold();
+					BEGIN(Bold);
+				}
+
+			else if (!strncmp(&yytext[0], "__", 2)) {
+					turn_on_bold();
+					BEGIN(Bold);
+				}		
+
+			else if (!strncmp(&yytext[0], "*", 1)) { 
+					turn_on_italic();	
+					BEGIN(Italic); 
+				}
+			else if (!strncmp(&yytext[0], "_", 1)) {
+					turn_on_italic();
+					BEGIN(Italic);
+				}
+			else if (!strncmp(&yytext[0], "`", 1)) {
+					turn_on_bold_underline();
+					BEGIN(InlineCode);
+				}
+			else if (!strncmp(&yytext[0], "~~", 2)) {
+					turn_on_underline();
+					BEGIN(Strikethrough);
+				}
+			else addstr(&yytext[0]);
+		   }
+    [\n]+       { BEGIN INITIAL; print_newline(); }
+    .          { addch(*yytext); }
 }
 
 <Header1>{
     .+          { print_header(&yytext[0]); }
-    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PAIR_H1); print_newline(); }
+    [\n]+       { BEGIN INITIAL;
+    				turn_off_bold();
+    			        turn_off_color(COLOR_PAIR_H1); 
+    				print_newline(); }
 }
 
 <Header2>{
     .+          { print_header(&yytext[0]); }
-    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PAIR_H2); print_newline(); }
+    [\n]+       { BEGIN INITIAL; 
+    				turn_off_bold();
+				turn_off_color(COLOR_PAIR_H2); 
+				print_newline(); }
 }
 
 <Header3>{
     .+          { print_header(&yytext[0]); }
-    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PAIR_H3); print_newline(); }
+    [\n]+       { BEGIN INITIAL; 
+    				turn_off_bold();
+				turn_off_color(COLOR_PAIR_H3); 
+				print_newline(); }
 }
 
 <Header4>{
     .+          { print_header(&yytext[0]); }
-    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PAIR_H4); print_newline(); }
+    [\n]+       { BEGIN INITIAL; 
+    				turn_off_bold();
+				turn_off_color(COLOR_PAIR_H4); 
+				print_newline(); }
 }
 
 <Header5>{
     .+          { print_header(&yytext[0]); }
-    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PAIR_H5); print_newline(); }
+    [\n]+       { BEGIN INITIAL; 
+				turn_off_bold();
+    				turn_off_color(COLOR_PAIR_H5); 
+				print_newline(); }
 }
 
 <Header6>{
     .+          { print_header(&yytext[0]); }
-    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PAIR_H6); print_newline(); }
+    [\n]+       { BEGIN INITIAL;
+    				turn_off_bold();
+    				turn_off_color(COLOR_PAIR_H6); 
+				print_newline(); }
 }
 
 <ListItem>{
     .+          { print_list_item(last_list_point, &yytext[0]); }
-    [\n]+       { BEGIN LineStart; }
+    [\n]+       { BEGIN INITIAL; }
 }
 
 <ImageAlt>{
@@ -85,7 +139,7 @@ void yyerror(const char*);
 }
 
 <ImagePath>{
-    ")"         { BEGIN LineStart; }
+    ")"         { BEGIN INITIAL; }
     .+          { char *addr = strndup(&yytext[0], yyleng);
     				print_hyperlink(last_hyperlink_name, addr);
 				free(addr); free(last_hyperlink_name); }
@@ -108,56 +162,52 @@ void yyerror(const char*);
 <CodeListing>{
     ^.+$        { code = realloc(code, (num_code + 1) * sizeof(char*));
     			code[num_code++] = strndup(&yytext[0], yyleng); }
-    "```"       {BEGIN LineStart; display_code_listing(code, num_code);
+    "```"       {BEGIN INITIAL; display_code_listing(code, num_code);
 	    			free(code); code = NULL; num_code = 0; }
-}
-
-<FormatStart>{
-    "*"         { BEGIN Italic; turn_on_italic(); }
-    "_"         { BEGIN Italic; turn_on_italic(); }
-    "__"        { BEGIN Bold; turn_on_bold();  }
-    "**"        { BEGIN Bold; turn_on_bold(); }
-    "`"         { BEGIN InlineCode; turn_on_bold_underline(); }
-    "~~"        { BEGIN Strikethrough; turn_on_underline(); }
-    .+          { print_text(&yytext[0]);}
-    [\n]+       { BEGIN Error; printf("-\n"); }
 }
 
 <Italic>{
     "*"         { BEGIN Line; turn_off_italic(); }
     "_"         { BEGIN Line; turn_off_italic(); }
     [\n]+       { BEGIN Error; }
-    .+          { print_text(&yytext[0]); }
+    .          { addch(*yytext); }
 }
 
 <Bold>{
     "**"        { BEGIN Line; turn_off_bold(); }
     "__"        { BEGIN Line; turn_off_bold(); }
     [\n]+       { BEGIN Error; }
-    .+          { print_text(&yytext[0]); }
+    .          { addch(*yytext); }
 }
 
 <InlineCode>{
     "`"         { BEGIN Line; turn_off_bold_underline(); }
     [\n]+       { BEGIN Error; }
-    .+          { print_text(&yytext[0]); }
+    .          { addch(*yytext); }
 }
 
 <Strikethrough>{
     "~~"        { BEGIN Line; turn_off_underline(); }
     [\n]+       { BEGIN Error; }
-    .+          { print_text(&yytext[0]); }
+    .          { addch(*yytext); }
+}
+
+<BoldItalic>{
+    "___"	{ BEGIN Line; turn_off_bold(); turn_off_italic(); }
+    "***"	{ BEGIN Line; turn_off_bold(); turn_off_italic(); }
+    [\n]+	{ BEGIN Error; }
+    .		{ addch(*yytext); }
 }
 
 <TableCell>{
     "|\n"	{ add_table_cell(last_table_cell, true); free(last_table_cell);  }
     "|"         { add_table_cell(last_table_cell, false); free(last_table_cell); }
-    [\n]+       { BEGIN LineStart;  }
+    [\n]+       { BEGIN INITIAL;  }
     .+          { last_table_cell = strndup(&yytext[0], yyleng); }
 }
 
 <TableSep>{
-    [\n]+       { BEGIN LineStart;}
+    [\n]+       { BEGIN INITIAL;}
 }
 
 <Error>{
@@ -171,12 +221,27 @@ void yyerror(const char *msg) {
   exit(EXIT_FAILURE);
 }
 
-int main() {
+static inline bool file_exits(const char *path) {
+  return access(path, F_OK) == 0;
+}
+
+FILE *bind_yyin(int argc, char **argv) {
+   return (argc > 1 && !file_exits(argv[1])) || argc < 2 
+   			? stdin 
+			: fopen(argv[1], "r");
+}
+
+int main(int argc, char **argv) {
     atexit(free_subwins);
+
+    yyin = bind_yyin(argc, argv);
 
     initscr();
     yylex();
     poll_and_navigate();
+    endwin();
+
+    yyin == stdin ? 0 : fclose(yyin);
     
     return 0;
 }
