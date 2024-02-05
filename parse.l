@@ -18,10 +18,13 @@ void yyerror(const char*);
 
 %option noyywrap
 
-%x Line ImagePath Header1 Header2 Header3 Header4 Header5 Header6 CodeListing ImageAlt ListNumber ListBullet ListItem LinkName LinkURL FormatStart Italic Bold BoldItalic InlineCode Strikethrough TableCell TableSep Error
+%x Line ImagePath Header1 Header2 Header3 Header4 Header5 Header6 CodeListing Image ListNumber ListBullet ListItem Hyperlink LinkURL FormatStart Italic Bold BoldItalic InlineCode Strikethrough TableCell TableSep Error
 
 %%
 
+<<EOF>>		   { return 0; }
+
+^[\\].		   { addch(*(yytext + 1)); }
 ^#[ \t]+           { BEGIN Header1; turn_on_color(COLOR_PAIR_H1); turn_on_bold(); }
 ^##[ \t]+          { BEGIN Header2; turn_on_color(COLOR_PAIR_H2); turn_on_bold(); }
 ^###[ \t]+         { BEGIN Header3; turn_on_color(COLOR_PAIR_H3); turn_on_bold(); }
@@ -30,13 +33,14 @@ void yyerror(const char*);
 ^######[ \t]+      { BEGIN Header6; turn_on_color(COLOR_PAIR_H6); turn_on_bold(); }
 ^```$          	   { BEGIN CodeListing; }
 ^"|"                { BEGIN TableCell; }
-^"!["               { BEGIN ImageAlt; }
 ^[1-9]+[ \t]+"-"   { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng);  }
 ^"*"[ \t]+|"-"[ \t]+ { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng); }
 ^[^#`0-9\*\-]	{ BEGIN Line; addch(*yytext); }
 
 <Line>{
-    "["         { BEGIN LinkName; }
+    [\\].	{ addch(*(yytext + 1)); }
+    "["         { BEGIN Hyperlink; }
+    "!["	{ BEGIN Image;     }
     [-~_*`]{1,3}   { 
     
 			if (!strncmp(&yytext[0], "***", 3)) {
@@ -133,31 +137,18 @@ void yyerror(const char*);
     [\n]+       { BEGIN INITIAL; }
 }
 
-<ImageAlt>{
-    "]("        { BEGIN ImagePath; }
-    .+          { last_hyperlink_name = strndup(&yytext[0], yyleng); }
+<Image,Hyperlink>{
+  [^\]]+"]("[^\)]+ {
+  		     char *hl, *orig, *name, *path;
+		     hl = orig = strndup(&yytext[0], yyleng);
+		     name = strtok(hl, "](");
+		     path = strtok(NULL, "](");
+		     print_hyperlink(name, path);
+		     free(orig);
+  		  }
+  [\n]+		  { BEGIN Error; }
 }
 
-<ImagePath>{
-    ")"         { BEGIN INITIAL; }
-    .+          { char *addr = strndup(&yytext[0], yyleng);
-    				print_hyperlink(last_hyperlink_name, addr);
-				free(addr); free(last_hyperlink_name); }
-    [\n]+       { BEGIN Error; }
-}
-
-<LinkName>{
-    "]("        { BEGIN LinkURL; }
-    .+          { last_hyperlink_name = strndup(&yytext[0], yyleng); }
-}
-
-<LinkURL>{
-    ")"        { BEGIN Line; }
-   .+          { char *addr = strndup(&yytext[0], yyleng);
-   				print_hyperlink(last_hyperlink_name, addr);
-				free(addr); free(last_hyperlink_name);  }
-   [\n]+       { BEGIN Error; }
-}
 
 <CodeListing>{
     ^.+$        { code = realloc(code, (num_code + 1) * sizeof(char*));
@@ -211,15 +202,10 @@ void yyerror(const char*);
 }
 
 <Error>{
-    .		{ yyerror("Parse error ocurred"); }
+    .		{ return -1; }
 }
 
 %%
-
-void yyerror(const char *msg) {
-  fprintf(stderr, "%s\n", msg);
-  exit(EXIT_FAILURE);
-}
 
 static inline bool file_exits(const char *path) {
   return access(path, F_OK) == 0;
@@ -236,12 +222,15 @@ int main(int argc, char **argv) {
 
     yyin = bind_yyin(argc, argv);
 
-    initscr();
-    yylex();
-    poll_and_navigate();
-    endwin();
-
-    yyin == stdin ? 0 : fclose(yyin);
+   initialize_screen();
+   if (yylex() >= 0) {
+    	yyin == stdin ? 0 : fclose(yyin);
+	poll_and_navigate();
+   } else {
+        fprintf(stderr, "Error occurred parsing markdown file");
+        exit(EXIT_FAILURE);
+    }
+    
     
     return 0;
 }
