@@ -1,5 +1,15 @@
 %{
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "pager.h"
+
+char *last_list_point = NULL;
+char *last_hyperlink_name = NULL;
+
+char **code = NULL;
+size_t num_code = 0;
+
 %}
 
 %option noyywrap
@@ -8,97 +18,93 @@
 
 %%
 
-^\.              {BEGIN LineStart; printf("LoadText\n");}
-^#[ \t]+        {BEGIN Header1; printf("-\n");}
-^##[ \t]+       {BEGIN Header2; printf("-\n");}
-^###[ \t]+      {BEGIN Header3; printf("-\n");}
-^####[ \t]+     {BEGIN Header4; printf("-\n");}
-^#####[ \t]+    {BEGIN Header5; printf("-\n");}
-^######[ \t]+   {BEGIN Header6; printf("-\n");}
-^```$          {BEGIN CodeListing; printf("-\n");}
-!\[             {BEGIN ImageAlt; printf("-\n");}
-[1-9]+          {BEGIN ListNumber; printf("-\n");}
-[*-]            {BEGIN ListBullet; printf("-\n");}
-\|             {BEGIN TableCell; printf("-\n");}
-.              {BEGIN Line; printf("-\n");}
+^\.              { BEGIN LineStart;  }
+^#[ \t]+        { BEGIN Header1; turn_on_color(COLOR_PAIR_H1); }
+^##[ \t]+       { BEGIN Header2; turn_on_color(COLOR_PAIR_H2); }
+^###[ \t]+      { BEGIN Header3; turn_on_color(COLOR_PAIR_H3); }
+^####[ \t]+     { BEGIN Header4; turn_on_color(COLOR_PAIR_H4); }
+^#####[ \t]+    { BEGIN Header5; turn_on_color(COLOR_PAIR_H5); }
+^######[ \t]+   { BEGIN Header6; turn_on_color(COLOR_PAIR_H6);  }
+^```$          { BEGIN CodeListing; }
+!\[             { BEGIN ImageAlt; }
+[1-9]+          { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng);  }
+[*-]            { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng); }
+\|             { BEGIN TableCell; }
+.              { BEGIN Line; printf("-\n");}
 
 <Line>{
-    "["         {BEGIN LinkName; printf("-\n");}
-    [-~_*`]     {BEGIN FormatStart; printf("-\n");}
-    [\n]+       {BEGIN LineStart; printf("LineEndAction\n");}
-    .+          {printf("AccumulateText\n");}
+    "["         { BEGIN LinkName; }
+    [-~_*`]     { BEGIN FormatStart; }
+    [\n]+       { BEGIN LineStart; print_newline(); }
+    .+          { print_text(&yytext[0]); }
 }
 
 <Header1>{
-    .+          {printf("AccumulateText\n");}
-    [\n]+       {BEGIN LineStart; printf("Header1Action\n");}
+    .+          { print_header(&yytext[0]); }
+    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PARI_H1); print_newline(); }
 }
 
 <Header2>{
-    .+          {printf("AccumulateText\n");}
-    [\n]+       {BEGIN LineStart; printf("Header2Action\n");}
+    .+          { print_header(&yytext[0]); }
+    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PARI_H2); print_newline(); }
 }
 
 <Header3>{
-    .+          {printf("AccumulateText\n");}
-    [\n]+       {BEGIN LineStart; printf("Header3Action\n");}
+    .+          { print_header(&yytext[0]); }
+    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PARI_H3); print_newline(); }
 }
 
 <Header4>{
-    .+          {printf("AccumulateText\n");}
-    [\n]+       {BEGIN LineStart; printf("Header4Action\n");}
+    .+          { print_header(&yytext[0]); }
+    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PARI_H4); print_newline(); }
 }
 
 <Header5>{
-    .+          {printf("AccumulateText\n");}
-    [\n]+       {BEGIN LineStart; printf("Header5Action\n");}
+    .+          { print_header(&yytext[0]); }
+    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PARI_H5); print_newline(); }
 }
 
 <Header6>{
-    .+          {printf("AccumulateText\n");}
-    [\n]+       {BEGIN LineStart; printf("Header6Action\n");}
-}
-
-<ListNumber>{
-    [0-9]       {printf("AccumulateText\n");}
-    [\s\t-]     {BEGIN ListItem; printf("ListNumberAction\n");}
-}
-
-<ListBullet>{
-    [*-]        {printf("AccumulateText\n");}
-    [\s\t]      {BEGIN ListItem; printf("ListBulletAction\n");}
+    .+          { print_header(&yytext[0]); }
+    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PARI_H6); print_newline(); }
 }
 
 <ListItem>{
-    .+          {printf("AccumulateText\n");}
-    [\n]+       {BEGIN LineStart; printf("ListItemAction\n");}
+    .+          { print_list_item(last_list_point, &yytext[0]); }
+    [\n]+       { BEGIN LineStart; }
 }
 
 <ImageAlt>{
-    "]("        {BEGIN ImagePath; printf("ImageAltAction\n");}
-    .+          {printf("AccumulateText\n");}
+    "]("        { BEGIN ImagePath; }
+    .+          { last_hyperlink_name = strndup(&yytext[0], yyleng); }
 }
 
 <ImagePath>{
-    ")"         {BEGIN LineStart; printf("ImagePathAction\n");}
-    .+          {printf("AccumulateText\n");}
-    [\n]+       {BEGIN Error; printf("-\n");}
+    ")"         { BEGIN LineStart; }
+    .+          { const char *addr = strndup(&yytext[0], yyleng);
+    				print_hyperlink(last_hyperlink_name, addr);
+				free(addr); free(last_hyperlink_name); }
+    [\n]+       { BEGIN Error; }
 }
 
 <LinkName>{
-    "]("        {BEGIN LinkURL; printf("LinkNameAction\n");}
-    .+          {printf("AccumulateText\n");}
+    "]("        { BEGIN LinkURL; }
+    .+          { last_hyperlink_name = strndup(&yytext[0], yyleng); }
 }
 
 <LinkURL>{
-    ")"         {BEGIN Line; printf("LinkURLAction\n");}
-   .+          {printf("AccumulateText\n");}
-   [\n]+       {BEGIN Error; printf("-\n");}
+    ")"        { BEGIN Line; }
+   .+          { const char *addr = strndup(&yytext[0], yyleng);
+   				print_hyperlink(last_hyperlink_name, addr);
+				free(addr); free(last_hyperlink_name);  }
+   [\n]+       { BEGIN Error; }
 }
 
 <CodeListing>{
-    ^.+$        {printf("AccumulateText\n");}
-    "```"       {BEGIN LineStart; printf("CodeListingAction\n");}
+    ^.+$        { code = realloc(code, (num_code + 1) * sizeof(char*));
+    			code[num_code++] = strndup(&yytext[0], yyleng); }
+    "```"       {BEGIN LineStart; display_code_listing(code, num_code);
+	    			free(code); code = NULL; num_code = 0; }
 }
 
 <FormatStart>{
