@@ -44,32 +44,32 @@ size_t num_code = 0;
 
 <Header1>{
     .+          { print_header(&yytext[0]); }
-    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PARI_H1); print_newline(); }
+    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PAIR_H1); print_newline(); }
 }
 
 <Header2>{
     .+          { print_header(&yytext[0]); }
-    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PARI_H2); print_newline(); }
+    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PAIR_H2); print_newline(); }
 }
 
 <Header3>{
     .+          { print_header(&yytext[0]); }
-    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PARI_H3); print_newline(); }
+    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PAIR_H3); print_newline(); }
 }
 
 <Header4>{
     .+          { print_header(&yytext[0]); }
-    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PARI_H4); print_newline(); }
+    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PAIR_H4); print_newline(); }
 }
 
 <Header5>{
     .+          { print_header(&yytext[0]); }
-    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PARI_H5); print_newline(); }
+    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PAIR_H5); print_newline(); }
 }
 
 <Header6>{
     .+          { print_header(&yytext[0]); }
-    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PARI_H6); print_newline(); }
+    [\n]+       { BEGIN LineStart; turn_off_color(COLOR_PAIR_H6); print_newline(); }
 }
 
 <ListItem>{
