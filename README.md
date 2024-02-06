@@ -26,10 +26,9 @@ make graph
 This will create `parse.png` which contains the Finite State Machine which I am using to parse Markdown with in Flex. You will need Graphviz.
 
 
-## Update (7:21PM - Feb 6)
+## What is a Pager?
 
-I added tables to it. Mind you rendering is very simple. Ncurses is not known for being a breeze to work with.
-
+This basically acts like the `man` or `more` and `less` utility. It will display Makrodwn, formatted, in your terminal.
 
 
 
