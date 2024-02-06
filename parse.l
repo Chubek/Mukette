@@ -24,8 +24,7 @@ void yyerror(const char*);
 
 %%
 
-	if (feof(yyin)) return 0;
-
+<*><<EOF>>	   return 0;
 
 ^[\\].		   { addch(*(yytext + 1)); }
 ^[#]{1,6}[ \t]+    { BEGIN Header; turn_on_color(COLOR_PAIR_HEADER); turn_on_bold(); }
@@ -96,15 +95,16 @@ void yyerror(const char*);
 }
 
 <Image,Hyperlink>{
-  [^\]]+"]("[^\)]+ {
-  		     char *hl, *orig, *name, *path;
-		     hl = orig = strndup(&yytext[0], yyleng);
-		     name = strtok(hl, "](");
-		     path = strtok(NULL, "](");
-		     print_hyperlink(name, path);
-		     free(orig);
-		     BEGIN INITIAL;
-  		  }
+  [^\]]+"]("[^ \)]+")" {
+  		        char *hl, *orig, *name, *path;
+		        hl = orig = strndup(&yytext[0], yyleng);
+		        name = strtok(hl, "](");
+		        path = strtok(NULL, "](");
+			path[strlen(path) - 1] = '\0';
+		        print_hyperlink(name, path);
+		        free(orig);
+		        BEGIN Line;
+  		      }
   [\n]+		  { BEGIN INITIAL; }
 }
 
@@ -160,23 +160,26 @@ void yyerror(const char*);
 
 
 FILE *bind_yyin(int argc, char **argv) {
-    if (argc < 2 && isatty(STDIN_FILENO)) {
-        fprintf(stderr, "File error\n");
-        exit(EXIT_FAILURE);
-    } else if ((argc > 1 && strcmp(argv[1], "-") == 0) || !isatty(STDIN_FILENO)) {
-        return stdin;
-    } else if (argc > 1 && access(argv[1], F_OK) != -1) {
-        return fopen(argv[1], "r");
-    } else {
-        fprintf(stderr, "You must pass an argument\n");
-        exit(EXIT_FAILURE);
-    }
+    bool stdin_is_tty = isatty(STDIN_FILENO);
+    bool file_passed = argc > 1;
+    
+    if (!stdin_is_tty && !file_passed)
+    	return stdin;
+    else if (file_passed)
+        return access(argv[1], F_OK) != -1 ? fopen(argv[1], "r") : NULL;
+    else
+     	return NULL;
 }
 
 int main(int argc, char **argv) {
     atexit(free_subwins);
 
-    yyin = fopen(argv[1], "r");
+    yyin = bind_yyin(argc, argv);
+
+    if (yyin == NULL) {
+	fprintf(stderr, "Input/Output error occurred\n");
+	exit(EXIT_FAILURE);
+    }
 
     initscr();
     cbreak();
@@ -186,6 +189,10 @@ int main(int argc, char **argv) {
 
     yylex();
     refresh();
+
+    if (yyin != stdin)
+        fclose(yyin);
+
 
     for (;;) {
         int ch = getch();
@@ -210,12 +217,11 @@ int main(int argc, char **argv) {
             default:
                 break;
         }
+
+	navigate_hyperlinks();
     }
 
 done:
-    if (yyin != stdin)
-        fclose(yyin);
-
     refresh();
     endwin();
 
