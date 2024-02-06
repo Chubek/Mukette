@@ -28,7 +28,7 @@ void yyerror(const char*);
 
 ^[\\].		   { addch(*(yytext + 1)); }
 ^[#]{1,6}[ \t]+    { BEGIN Header; turn_on_color(COLOR_PAIR_HEADER); turn_on_bold(); }
-^```$          	   { BEGIN CodeListing; }
+^```$          	   { BEGIN CodeListing; turn_on_bold(); }
 ^"|"[ \t]+         { BEGIN TableCell; addch('\t'); }
 ^"|-"[|-]+$         { hline('-', yyleng); };
 ^[1-9]+[ \t]+"-"   { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng);  }
@@ -111,8 +111,8 @@ void yyerror(const char*);
 
 
 <CodeListing>{
-    ^.+$        { addstr(&yytext[0]); }
-    "```"       { BEGIN INITIAL;      }
+    ^.+$        { printw("\t%s", &yytext[0]); }
+    "```"       { BEGIN INITIAL; turn_off_bold();     }
 }
 
 <Italic>{
