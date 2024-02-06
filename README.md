@@ -16,6 +16,15 @@ Then you can:
 cat example-document.md | ./mukette
 ```
 
+You can also compile the automata as an Graphviz FSM using:
+
+```
+sudo apt-get install graphviz
+make graph
+```
+
+This will create `parse.png` which contains the Finite State Machine which I am using to parse Markdown with in Flex. You will need Graphviz.
+
 
 ## Update (7:21PM - Feb 6)
 
