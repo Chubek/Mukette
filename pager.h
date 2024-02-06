@@ -153,9 +153,11 @@ bool is_approaching(int target, int value, int tolerance) {
   return (value >= target - tolerance) && (value <= target + tolerance);
 }
 
-static inline void navigate_hyperlinks(int y, int x) {
+static inline void navigate_hyperlinks(void) {
   struct Hyperlink *link;
   size_t i = 0;
+  int y, x;
+  getyx(stdscr, y, x);
   while (i < curr_link) {
     link = &links[i];
     if (link->y == y && is_approaching(link->x, x, link->len)) {
