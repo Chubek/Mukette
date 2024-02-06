@@ -5,7 +5,7 @@ Mukette is a Markdown pager. It uses ncurses to format Makrodwn files in your te
 
 
 ```
-sudo apt-get install ncurses
+sudo apt-get install ncurses flex
 make
 ```
 
@@ -17,7 +17,10 @@ cat example-document.md | ./mukette
 ```
 
 
-I may pause work on this for now, but if you have taken an interest in this project, do send me a PR.
+## Update (7:21PM - Feb 6)
+
+I added tables to it. Mind you rendering is very simple. Ncurses is not known for being a breeze to work with.
+
 
 
 
