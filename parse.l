@@ -7,7 +7,6 @@
 #include <signal.h>
 #include "pager.h"
 
-char *last_table_cell = NULL;
 char *last_list_point = NULL;
 char *last_hyperlink_name = NULL;
 
@@ -25,14 +24,18 @@ void yyerror(const char*);
 %%
 
 <*><<EOF>>	   return 0;
+<*>[\n]       { BEGIN INITIAL; print_newline(); }
 
 ^[\\].		   { addch(*(yytext + 1)); }
 ^[#]{1,6}[ \t]+    { BEGIN Header; turn_on_color(COLOR_PAIR_HEADER); turn_on_bold(); }
 ^```$          	   { BEGIN CodeListing; }
-^"|"                { BEGIN TableCell; }
+^"|"[ \t]+         { BEGIN TableCell; addch('\t'); }
+^"|-"[|-]+$         { hline('-', yyleng); };
 ^[1-9]+[ \t]+"-"   { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng);  }
 1^"*"[ \t]+|"-"[ \t]+ { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng); }
 ^[^#`0-9\*\-]	{ BEGIN Line; addch(*yytext); }
+
+
 
 <Line>{
     [\\].	{ addch(*(yytext + 1)); }
@@ -77,7 +80,6 @@ void yyerror(const char*);
 				}
 			else addstr(&yytext[0]);
 		   }
-    [\n]+       { BEGIN INITIAL; print_newline(); }
     .          { addch(*yytext); }
 }
 
@@ -105,15 +107,12 @@ void yyerror(const char*);
 		        free(orig);
 		        BEGIN Line;
   		      }
-  [\n]+		  { BEGIN INITIAL; }
 }
 
 
 <CodeListing>{
-    ^.+$        { code = realloc(code, (num_code + 1) * sizeof(char*));
-    			code[num_code++] = strndup(&yytext[0], yyleng); }
-    "```"       {BEGIN INITIAL; display_code_listing(code, num_code);
-	    			free(code); code = NULL; num_code = 0; }
+    ^.+$        { addstr(&yytext[0]); }
+    "```"       { BEGIN INITIAL;      }
 }
 
 <Italic>{
@@ -145,15 +144,12 @@ void yyerror(const char*);
 }
 
 <TableCell>{
-    "|\n"	{ add_table_cell(last_table_cell, true); free(last_table_cell);  }
-    "|"         { add_table_cell(last_table_cell, false); free(last_table_cell); }
-    [\n]+       { BEGIN INITIAL;  }
-    .+          { last_table_cell = strndup(&yytext[0], yyleng); }
+    "|\n"	{ BEGIN INITIAL;  }
+    "|"         { addch('\t'); }
+    .           { addch(*yytext);  }
 }
 
-<TableSep>{
-    [\n]+       { BEGIN INITIAL; }
-}
+<TableSep>[-|] { }
 
 
 %%
@@ -172,8 +168,6 @@ FILE *bind_yyin(int argc, char **argv) {
 }
 
 int main(int argc, char **argv) {
-    atexit(free_subwins);
-
     yyin = bind_yyin(argc, argv);
 
     if (yyin == NULL) {
