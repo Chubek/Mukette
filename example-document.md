@@ -9,3 +9,13 @@ Below, you can see a table:
 |-------|-------|-------|
 | Cell4 | Cell5 | Cell6 |
 
+
+This is `(char*)"inline code"` --- and this is a code listing:
+
+```
+/e/ { print $0; }
+function abs(i,j,c)
+{
+   printf "%d%d%d", i, j, c;
+}
+```
