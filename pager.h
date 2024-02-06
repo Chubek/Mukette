@@ -19,13 +19,13 @@
 #define LINES_OFFS 2
 #define COLS_OFFS 6
 
-#define COLOR_PAIR_H1 1
-#define COLOR_PAIR_H2 2
-#define COLOR_PAIR_H3 3
-#define COLOR_PAIR_H4 4
-#define COLOR_PAIR_H5 5
-#define COLOR_PAIR_H6 6
-#define CODE_COLOR_PAIR 7
+#define COLOR_PAIR_HEADER 1
+#define COLOR_PAIR_CODE 2
+
+#define KEY_IS_NOT_EXIT(ch) (ch != KEY_EXIT && ch != KEY_F(1))
+#define KEY_IS_VERT_ARROW(ch) (ch == KEY_UP || ch == KEY_DOWN)
+#define KEY_IS_HORIZ_ARROW(ch) (ch == KEY_LEFT || ch == KEY_RIGHT)
+#define KEY_IS_ACTION(ch) (ch == KEY_ENTER || ch == KEY_COMMAND)
 
 static struct Hyperlink {
   int y, x, len;
@@ -46,33 +46,6 @@ size_t curr_subwin = 0;
 jmp_buf jbuf = {0};
 
 
-static inline void initialize_screen(void) {
-    initscr();
-    
-    if (has_colors() == FALSE) {
-        endwin();
-        fprintf(stderr, "Your terminal does not support color\n");
-        exit(EXIT_FAILURE);
-    }
-
-    if (start_color() != OK) {
-        endwin();
-        fprintf(stderr, "Unable to start color\n");
-        exit(EXIT_FAILURE);
-    }
-
-    cbreak();
-    keypad(stdscr, TRUE);
-    noecho();
-    curs_set(TRUE);
-}
-
-
-static inline void destroy_screen(void) {
-   endwin();
-   exit(EXIT_SUCCESS);
-}
-
 void navigate_to_addr(const char *link) {
     char *const argv[] = { "xdg-open", (char*)link, NULL };
     posix_spawn_file_actions_t file_actions;
@@ -90,87 +63,33 @@ void navigate_to_addr(const char *link) {
 }
 
 
-void poll_and_wait_link_action(const char *addr) {
-  int c = 0;
-  while ((c = getch()) != KEY_F(1)) {
-    refresh();
-    switch (c) {
-    case KEY_ENTER:
-      navigate_to_addr(addr);
-      break;
-    default:
-      longjmp(jbuf, 1);
-    }
-  }
-}
-
-static inline void navigate_hyperlinks(int y, int x);
-
-void poll_and_navigate(void) {
-    int c = 0;
-    int y, x;
-    int my, mx;
-    getyx(stdscr, y, x);
-    getmaxyx(stdscr, my, mx);
-
-    while ((c = getch()) != KEY_F(1)) {
-        switch (c) {
-            case KEY_UP:
-                y--;
-                break;
-            case KEY_DOWN:
-                y++;
-                break;
-            case KEY_RIGHT:
-                x++;
-                break;
-            case KEY_LEFT:
-                x--;
-                break;
-            default:
-                break;
-        }
-
-        y = (y < 0) ? 0 : (y >= my) ? my - 1 : y;
-        x = (x < 0) ? 0 : (x >= mx) ? mx - 1 : x;
-
-        move(y, x);
-        refresh();
-        navigate_hyperlinks(y, x);
-    }
-
-    destroy_screen();
-}
-
-
-static inline void init_color_h1(void) {
-  init_pair(COLOR_PAIR_H1, COLOR_BLUE, COLOR_BLACK);
-}
-
-static inline void init_color_h2(void) {
-  init_pair(COLOR_PAIR_H2, COLOR_WHITE, COLOR_BLACK);
-}
-
-static inline void init_color_h3(void) {
-  init_pair(COLOR_PAIR_H3, COLOR_BLACK, COLOR_WHITE);
-}
-
-static inline void init_color_h4(void) {
-  init_pair(COLOR_PAIR_H4, COLOR_CYAN, COLOR_WHITE);
-}
-
-static inline void init_color_h5(void) {
-  init_pair(COLOR_PAIR_H5, COLOR_RED, COLOR_BLACK);
-}
-
-static inline void init_color_h6(void) {
-  init_pair(COLOR_PAIR_H6, COLOR_MAGENTA, COLOR_BLACK);
-}
-
-static inline void print_horiz_line(void) {
+static inline void move_up(void) {
   int y, x;
   getyx(stdscr, y, x);
-  mvhline(y, 1, ACS_HLINE, 20);
+  move(y - 1, x);
+}
+
+static inline void move_down(void) {
+  int y, x;
+  getyx(stdscr, y, x);
+  move(y + 1, x);
+}
+
+static inline void move_left(void) {
+  int y, x;
+  getyx(stdscr, y, x);
+  move(y, x - 1);
+}
+
+static inline void move_right(void) {
+  int y, x;
+  getyx(stdscr, y, x);
+  move(y, x + 1);
+}
+
+static inline void initialize_colors(void) {
+  init_pair(COLOR_PAIR_HEADER, COLOR_BLACK, COLOR_WHITE);
+  init_pair(COLOR_PAIR_CODE, COLOR_WHITE, COLOR_BLACK);
 }
 
 static inline void print_newline(void);
@@ -179,7 +98,7 @@ static inline void print_header(const char *text) {
   int y, x;
   getyx(stdscr, y, x);
   mvprintw(y, 1, "%s\n", text);
-  print_horiz_line();
+  hline('-', 20);
   print_newline();
 }
 
@@ -242,7 +161,6 @@ static inline void navigate_hyperlinks(int y, int x) {
     if (link->y == y && is_approaching(link->x, x, link->len)) {
       turn_on_reverse();
       mvprintw(link->y, link->x, "%s", &link->addr[0]);
-      poll_and_wait_link_action(&link->addr[0]);
       turn_off_reverse();
       return;
     }
@@ -260,8 +178,7 @@ static inline void display_code_listing(char **code, int lines) {
       newwin(lines + LINES_OFFS, mx + COLS_OFFS, y, x);
   scrollok(code_win, false);
 
-  init_pair(CODE_COLOR_PAIR, COLOR_WHITE, COLOR_BLACK);
-  wattron(code_win, COLOR_PAIR(CODE_COLOR_PAIR));
+  wattron(code_win, COLOR_PAIR(COLOR_PAIR_CODE));
 
   for (int yy = 0; yy < lines; yy++) {
     mvwprintw(code_win, yy, 1, "%s", code[yy]);
