@@ -10,11 +10,9 @@
 #include <sys/wait.h>
 #include <setjmp.h>
 
-#define MAX_SUBWIN 512
 #define MAX_LINK 4096
 #define MAX_ADDR 256
 #define MAX_CONTENTS 512
-#define MAX_CELL 1024
 
 #define LINES_OFFS 2
 #define COLS_OFFS 6
@@ -32,19 +30,6 @@ static struct Hyperlink {
   char addr[MAX_ADDR];
 } links[MAX_LINK];
 size_t curr_link = 0;
-
-static struct TableCell {
-  int row, col;
-  bool breaks;
-  char contents[MAX_CELL];
-} cells[MAX_CELL];
-size_t curr_cell = 0;
-
-WINDOW *subwins[MAX_SUBWIN];
-size_t curr_subwin = 0;
-
-jmp_buf jbuf = {0};
-
 
 void navigate_to_addr(const char *link) {
     char *const argv[] = { "xdg-open", (char*)link, NULL };
@@ -170,62 +155,6 @@ static inline void navigate_hyperlinks(void) {
   }
 }
 
-static inline void display_code_listing(char **code, int lines) {
-  int y, x;
-  int my, mx;
-  getyx(stdscr, y, x);
-  getmaxyx(stdscr, my, mx);
 
-  WINDOW *code_win = subwins[curr_subwin++] =
-      newwin(lines + LINES_OFFS, mx + COLS_OFFS, y, x);
-  scrollok(code_win, false);
-
-  wattron(code_win, COLOR_PAIR(COLOR_PAIR_CODE));
-
-  for (int yy = 0; yy < lines; yy++) {
-    mvwprintw(code_win, yy, 1, "%s", code[yy]);
-  }
-}
-
-static inline void display_table(void) {
-  int y, x;
-  getyx(stdscr, y, x);
-
-  int rows = cells[curr_cell].row;
-  int cols = cells[curr_cell].col;
-
-  WINDOW *table_win = subwins[curr_subwin++] =
-      newwin(rows + LINES_OFFS, cols + COLS_OFFS, y, x);
-  scrollok(table_win, false);
-
-  for (int r = 0; r < rows; r++) {
-    for (int c = 0; c < cols; c++) {
-      mvwprintw(table_win, r, c * MAX_CONTENTS + 1, "| %s |",
-                &cells[r * cols + c].contents[0]);
-      if (cells[r * cols + c].breaks)
-        print_newline();
-    }
-  }
-}
-
-static inline void add_table_cell(const char *contents, bool breaks) {
-  cells[curr_cell] = (struct TableCell){.row = cells[curr_cell].row,
-                                        .col = cells[curr_cell].col,
-                                        .breaks = breaks,
-                                        .contents = {0}};
-  strncat(cells[curr_cell].contents, contents, MAX_CONTENTS);
-  curr_cell++;
-}
-
-static inline void blank_out_table_cells(void) {
-  while (--curr_cell)
-    memset(&cells[curr_cell], 0, sizeof(struct TableCell));
-}
-
-static void free_subwins(void) {
-  while (curr_subwin--) {
-    delwin(subwins[curr_subwin]);
-  }
-}
 
 #endif
