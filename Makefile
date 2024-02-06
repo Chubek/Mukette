@@ -15,7 +15,7 @@ graph:  $(DOT_SRC)
 	dot -Tpng -o $(DOT_PNG) $(DOT_SRC)
 
 $(LEX_EXE): $(LEX_GEN)
-	$(CC) -o $@ $^ -lfl -lcurses
+	$(CC) $(DEBUG) -o $@ $^ -lfl -lcurses
 
 $(LEX_GEN): $(LEX_SRC)
 	$(LEX) -o$@ $^
