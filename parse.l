@@ -6,12 +6,12 @@
 #include <stdbool.h>
 #include "pager.h"
 
-void yyerror(const char*);
 int lsnum = 1;
 
-%}
+extern int yywrap(void);
+extern FILE *yyin = NULL;
 
-%option noyywrap
+%}
 
 %x FmtLine ImagePath Header CodeListing Image Hyperlink LinkURL FormatStart Italic Bold BoldItalic InlineCode Strikethrough TableCell TableSep
 
@@ -157,53 +157,3 @@ $[^*~`_-]+$	     { addstr(&yytext[0]); print_newline(); }
 
 
 %%
-
-
-FILE *bind_yyin(int argc, char **argv) {
-    bool stdin_is_tty = isatty(STDIN_FILENO);
-    bool file_passed = argc > 1;
-    
-    if (!stdin_is_tty && !file_passed)
-    	return stdin;
-    else if (file_passed)
-        return access(argv[1], F_OK) != -1 ? fopen(argv[1], "r") : NULL;
-    else
-     	return NULL;
-}
-
-int main(int argc, char **argv) {
-    yyin = bind_yyin(argc, argv);
-
-    if (yyin == NULL) {
-	fprintf(stderr, "Input/Output error occurred\n");
-	exit(EXIT_FAILURE);
-    }
-
-    initscr();
-    cbreak();
-    noecho();
-    scrollok(stdscr, FALSE);
-    keypad(stdscr, TRUE);
-    initialize_colors();
-
-    yylex();
-    fclose(yyin);
-    refresh();
-
-    int link_at = 0;
-    for (;;) {
-        int c = getch();
-        refresh();
-        
-	if (c == KEY_STAB || c == '\t' || c == KEY_NEXT)
-		jump_to_next_link(&link_at);
-	else if (c == KEY_EXIT || c == KEY_F(1) || c == 'q' || c == 'Q')
-		goto done;
-    }
-
-done:
-    refresh();
-    endwin();
-
-    return 0;
-}
