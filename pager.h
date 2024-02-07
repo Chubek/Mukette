@@ -2,14 +2,7 @@
 #define PAGER_H
 
 #include <curses.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <spawn.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <setjmp.h>
-#include <pthread.h>
 
 #define MAX_LINK 4096
 #define MAX_ADDR 256
@@ -21,13 +14,11 @@
 #define COLOR_PAIR_HEADER 1
 #define COLOR_PAIR_CODE 2
 
+#define MAX_CMD MAX_LINK + 512
 
 #ifndef DEFAULT_BROWSER
 #define DEFAULT_BROWSER "firefox"
 #endif
-
-static pthread_t input_thread = 0;
-jmp_buf jbuf = {0};
 
 static struct Hyperlink {
   int y, x, width, height;
@@ -121,64 +112,43 @@ static inline void print_hyperlink(const char *name, const char *addr) {
 }
 
 static inline bool is_approaching(int link_x, int curr_x, int link_len) {
-    return (curr_x >= link_x - link_len) && (curr_x <= link_x + link_len);
+  return (curr_x >= link_x - link_len) && (curr_x <= link_x + link_len);
 }
 
+static inline void navigate_to_addr(const char *link) {
+#ifdef __linux__
+  char const *app = "xdg-open";
+#elif __APPLE__
+  char const *app = "open";
+#else
+  char const *app = DEFAULT_BROWSER;
+#endif
 
-void navigate_to_addr(const char*);
+  char cmd_full[MAX_CMD] = {0};
 
-void *input_thread_func(void *arg) {
-    struct Hyperlink *link = (struct Hyperlink *)arg;
-    while (true) {
-        int c = getch();
-        if (c == KEY_ENTER || c == '\n') {
-            navigate_to_addr(link->addr);
-            mvchgat(link->y, link->x, link->width * link->height, A_BOLD | A_REVERSE, COLOR_PAIR(0), NULL);
-	}
-        usleep(10000);
-    }
-    return NULL;
+  sprintf(&cmd_full[0], "%s %s", &app[0], (char *)link);
+  system(&cmd_full[0]);
 }
 
-void navigate_hyperlinks() {
-    int y, x;
-    struct Hyperlink *link;
+static inline void jump_to_next_link(int *link_curs_at) {
+  int curs_deref = *link_curs_at;
+  if (curs_deref >= curr_link) {
+    *link_curs_at = curs_deref = 0;
+  } else {
+    struct Hyperlink *link = &links[curs_deref];
 
-    for (size_t i = 0; i < curr_link; i++) {
-        link = &links[i];
-        getyx(stdscr, y, x);
-        if (link->y == y && is_approaching(link->x, x, link->width)) {
-            mvchgat(link->y, link->x, link->width * link->height, A_BOLD | A_REVERSE, COLOR_PAIR(0), NULL);
-            refresh();
-	    pthread_create(&input_thread, NULL, input_thread_func, (void *)link);
-            pthread_detach(input_thread);
-            pthread_exit(NULL);
-        }
-    }
+    mvchgat(link->y, link->x, link->width * link->height, A_BOLD | A_REVERSE,
+            COLOR_PAIR(0), NULL);
+    refresh();
 
-    longjmp(jbuf, 1);
+    int c = getch();
+    if (c == KEY_ENTER || c == KEY_COMMAND || c == '\n')
+      navigate_to_addr(&link->addr[0]);
 
-}
-void navigate_to_addr(const char *link) {
-    #ifdef __linux__
-    char *const argv[] = { "xdg-open", (char*)link, NULL };
-    #elif __APPLE__
-    char *const argv[] = { "open", (char*)link, NULL };
-    #else
-    char *const argv[] = { DEFAULT_BROWSER, (char*)link, NULL };
-    #endif
-
-    posix_spawn_file_actions_t file_actions;
-    posix_spawn_file_actions_init(&file_actions);
-
-    pid_t pid;
-    if (posix_spawnp(&pid, argv[0], &file_actions, NULL, argv, NULL) == 0) {
-        waitpid(pid, NULL, 0);
-    } else {
-        perror("posix_spawnp");
-    }
-
-    posix_spawn_file_actions_destroy(&file_actions);
+    mvchgat(link->y, link->x, link->width * link->height, A_NORMAL,
+            COLOR_PAIR(0), NULL);
+    refresh();
+  }
 }
 
 #endif
