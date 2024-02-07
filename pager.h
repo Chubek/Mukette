@@ -20,6 +20,8 @@
 #define DEFAULT_BROWSER "firefox"
 #endif
 
+#define PRINT_BUFF() addch(*yytext)
+
 static struct Hyperlink {
   int y, x, width, height;
   char addr[MAX_ADDR];
@@ -80,6 +82,9 @@ static inline void turn_off_underline(void) { attroff(A_UNDERLINE); }
 static inline void turn_on_reverse(void) { attron(A_REVERSE); }
 static inline void turn_off_reverse(void) { attroff(A_REVERSE); }
 
+static inline void turn_on_standout(void) { attron(A_STANDOUT); }
+static inline void turn_off_standout(void) { attroff(A_STANDOUT); }
+
 static inline void turn_on_bold_underline(void) {
   attron(A_BOLD | A_UNDERLINE);
 }
@@ -87,8 +92,11 @@ static inline void turn_off_bold_underline(void) {
   attroff(A_BOLD | A_UNDERLINE);
 }
 
-static inline void print_text(const char *text) { addstr(text); }
+static inline void turn_off_all(void) { attroff(A_ATTRIBUTES); }
+
+
 static inline void print_newline(void) { addch('\n'); }
+static inline void print_tab(void) { addch('\t'); }
 
 static inline void print_hyperlink(const char *name, const char *addr) {
   int y, ny, x;
@@ -136,13 +144,13 @@ static inline void jump_to_next_link(int *link_curs_at) {
     if (c == KEY_ENTER || c == KEY_COMMAND || c == '\n')
       navigate_to_addr(&link->addr[0]);
     else if (c == KEY_STAB || c == '\t' || c == KEY_NEXT) {   
-        mvchgat(link->y, link->x, link->width * link->height, A_NORMAL,
+        mvchgat(link->y, link->x, link->width * link->height, A_ITALIC | A_UNDERLINE,
             COLOR_PAIR(0), NULL);
     	refresh();
         jump_to_next_link(link_curs_at);
     }
 
-    mvchgat(link->y, link->x, link->width * link->height, A_NORMAL,
+    mvchgat(link->y, link->x, link->width * link->height, A_ITALIC | A_UNDERLINE,
             COLOR_PAIR(0), NULL);
     refresh();
   }
