@@ -2,6 +2,10 @@
 #define PAGER_H
 
 #include <curses.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #define MAX_LINK 4096
@@ -20,13 +24,37 @@
 #define DEFAULT_BROWSER "firefox"
 #endif
 
+#define GETPOS(Y, X)  int Y, X; getyx(stdscr, Y, X)
+#define GETMAX(Y, X)  int Y, X; getmaxyx(stdscr, Y, X);
+
 #define PRINT_BUFF() addch(*yytext)
 
-static struct Hyperlink {
-  int y, x, width, height;
-  char addr[MAX_ADDR];
-} links[MAX_LINK];
-size_t curr_link = 0;
+typedef struct Navigatable Naviable;
+typedef enum NavigatableType NaviableType;
+
+void insert_naviable(NaviableType type, 
+		int y, int x, int width,
+		const char *contents, const char *tag);
+void free_naviable_list(void);
+void add_naviable_hyperlink(const char *name, const char *addr);
+void add_naviable_listing(const char *prog, const char *code);
+void add_naviable_lsitem(const char *bullet, const char *text);
+
+
+static inline void initialize(void) {
+  initscr();
+  cbreak();
+  noecho();
+  scrollok(stdscr, FALSE);
+  keypad(stdscr, TRUE);
+  initialize_colors();
+  atext(free_naviable_list);
+}
+
+static inline void terminate(void) {
+  endwin();
+  fee_naviable_list();
+}
 
 static inline void move_up(void) {
   int y, x;
@@ -59,14 +87,6 @@ static inline void initialize_colors(void) {
 
 static inline void print_newline(void);
 
-static inline void print_header(const char *text) {
-  int y, x;
-  getyx(stdscr, y, x);
-  mvprintw(y, 1, "%s\n", text);
-  hline('-', 20);
-  print_newline();
-}
-
 static inline void turn_on_color(int icolor) { attron(COLOR_PAIR(icolor)); }
 static inline void turn_off_color(int icolor) { attroff(COLOR_PAIR(icolor)); }
 
@@ -94,66 +114,7 @@ static inline void turn_off_bold_underline(void) {
 
 static inline void turn_off_all(void) { attroff(A_ATTRIBUTES); }
 
-
 static inline void print_newline(void) { addch('\n'); }
 static inline void print_tab(void) { addch('\t'); }
-
-static inline void print_hyperlink(const char *name, const char *addr) {
-  int y, ny, x;
-  getyx(stdscr, y, x);
-  turn_on_underline();
-  turn_on_italic();
-  links[curr_link++] =
-      (struct Hyperlink){.y = y, .x = x, .width = strlen(name), .addr = {0}};
-  strncat(&links[curr_link - 1].addr[0], &addr[0], MAX_ADDR);
-  addstr(name);
-  turn_off_underline();
-  turn_off_italic();
-  getyx(stdscr, ny, x);
-  links[curr_link - 1].height = 1 + ny - y;
-}
-
-static inline void navigate_to_addr(const char *link) {
-#ifdef __linux__
-  char const *app = "xdg-open";
-#elif __APPLE__
-  char const *app = "open";
-#else
-  char const *app = DEFAULT_BROWSER;
-#endif
-
-  char cmd_full[MAX_CMD] = {0};
-
-  sprintf(&cmd_full[0], "%s %s", &app[0], (char *)link);
-  system(&cmd_full[0]);
-}
-
-static inline void jump_to_next_link(int *link_curs_at) {
-  int curs_deref = *link_curs_at;
-  if (curs_deref == curr_link) {
-    *link_curs_at = curs_deref = 0;
-  } else {
-    struct Hyperlink *link = &links[curs_deref];
-    *link_curs_at = ++curs_deref;
-
-    mvchgat(link->y, link->x, link->width * link->height, A_BOLD | A_REVERSE,
-            COLOR_PAIR(0), NULL);
-    refresh();
-
-    int c = getch();
-    if (c == KEY_ENTER || c == KEY_COMMAND || c == '\n')
-      navigate_to_addr(&link->addr[0]);
-    else if (c == KEY_STAB || c == '\t' || c == KEY_NEXT) {   
-        mvchgat(link->y, link->x, link->width * link->height, A_ITALIC | A_UNDERLINE,
-            COLOR_PAIR(0), NULL);
-    	refresh();
-        jump_to_next_link(link_curs_at);
-    }
-
-    mvchgat(link->y, link->x, link->width * link->height, A_ITALIC | A_UNDERLINE,
-            COLOR_PAIR(0), NULL);
-    refresh();
-  }
-}
 
 #endif
