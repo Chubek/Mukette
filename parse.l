@@ -4,14 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <signal.h>
 #include "pager.h"
-
-char *last_list_point = NULL;
-char *last_hyperlink_name = NULL;
-
-char **code = NULL;
-size_t num_code = 0;
 
 void yyerror(const char*);
 
@@ -31,8 +24,21 @@ void yyerror(const char*);
 ^```$          	   { BEGIN CodeListing; turn_on_bold(); }
 ^"|"[ \t]+         { BEGIN TableCell; addch('\t'); }
 ^"|-"[|-]+$         { hline('-', yyleng); };
-^[1-9]+[ \t]+"-"   { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng);  }
-1^"*"[ \t]+|"-"[ \t]+ { BEGIN ListItem; last_list_point = strndup(&yytext[0], yyleng); }
+^[1-9]+[ \t]+[.-]   { BEGIN ListItem; 
+				char const * const num = 
+					strndup(&yytext[0], yyleng - 1); 
+				addstr(num); 
+				free((void*)num); 
+		    }
+^[ \t]?[*.-]+[ \t]+ { BEGIN ListItem; turn_on_bold(); 
+				char const * const orig =
+					strndup(&yytext[0], yyleng - 1);
+				char *bullet = strpbrk(orig, "*-.");
+				size_t non_bullet = strcspn(bullet, "*-.");
+				bullet[non_bullet] = '\0';
+				addstr(bullet);
+				free((void*)orig);
+		    }
 ^[^#`0-9\*\-]	{ BEGIN Line; addch(*yytext); }
 
 
@@ -92,8 +98,8 @@ void yyerror(const char*);
 }
 
 <ListItem>{
-    .+          { print_list_item(last_list_point, &yytext[0]); }
-    [\n]+       { BEGIN INITIAL; }
+    .           { addch(*yytext);  }
+    [\n]+       { BEGIN INITIAL; addch('\n'); }
 }
 
 <Image,Hyperlink>{
