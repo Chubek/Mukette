@@ -7,44 +7,43 @@
 #include "pager.h"
 
 void yyerror(const char*);
+int lsnum = 1;
 
 %}
 
 %option noyywrap
 
-%x Line ImagePath Header CodeListing Image ListNumber ListBullet ListItem Hyperlink LinkURL FormatStart Italic Bold BoldItalic InlineCode Strikethrough TableCell TableSep
+%x FmtLine ImagePath Header CodeListing Image Hyperlink LinkURL FormatStart Italic Bold BoldItalic InlineCode Strikethrough TableCell TableSep
 
 %%
 
 <*><<EOF>>	   return 0;
-<*>[\n]       { BEGIN INITIAL; print_newline(); fflush(yyin); }
+<Italic,Bold,BoldItalic,Strikethrough,InlineCode>[\n] { print_newline(); 
+						turn_off_all(); BEGIN INITIAL; }
 
-^[\\].		   { addch(*(yytext + 1)); }
-^[#]{1,6}[ \t]+    { BEGIN Header; turn_on_color(COLOR_PAIR_HEADER); turn_on_bold(); }
-^```$          	   { BEGIN CodeListing; turn_on_bold(); }
-^"|"[ \t]+         { BEGIN TableCell; addch('\t'); }
-^"|-"[|-]+$         { hline('-', yyleng); };
-^[1-9]+[ \t]+[.-]   { BEGIN ListItem; 
-				char const * const num = 
-					strndup(&yytext[0], yyleng - 1); 
-				addstr(num); 
-				free((void*)num); 
-		    }
-^[ \t]?[*.-]+[ \t]+ { BEGIN ListItem; turn_on_bold(); 
-				char const * const orig =
-					strndup(&yytext[0], yyleng - 1);
-				char *bullet = strpbrk(orig, "*-.");
-				size_t non_bullet = strcspn(bullet, "*-.");
-				bullet[non_bullet] = '\0';
-				addstr(bullet);
-				free((void*)orig);
-		    }
-^[^#`0-9\*\-]	{ BEGIN Line; addch(*yytext); }
+[\n]		   { print_newline(); }
+^[\\]{1}.	   { addch(*(yytext + 1)); }
+^[#]{1,6}[ \t]+    { turn_on_standout(); print_tab(); addch('*'); BEGIN Header; }
+^"|"[ \t]+         { BEGIN TableCell; print_tab(); }
+^"|-"[|-]+$         { print_newline();
+		      print_tab();
+				for (int i = 0; i < yyleng; i++) { addch('-'); }
+					print_newline(); };
+
+
+^[`]{3}$	    { turn_on_bold(); printw("+Begin Listing %d (Untagged):", lsnum);
+				turn_off_bold();
+				BEGIN CodeListing; }
+^[`]{3}.+$	    { turn_on_bold(); printw("+Begin Listing %d (%s):", lsnum, &yytext[3]);
+				turn_off_bold();
+				BEGIN CodeListing; }
+$[^*~`_-]+$	     { addstr(&yytext[0]); print_newline(); }
+^.		     { BEGIN FmtLine; PRINT_BUFF(); }
 
 
 
-<Line>{
-    [\\].	{ addch(*(yytext + 1)); }
+<FmtLine>{
+    [\\]{1}.	{ addch(*(yytext + 1)); }
     "["         { BEGIN Hyperlink; }
     "!["	{ BEGIN Image;     }
     [-~_*`]{1,3}   { 
@@ -86,20 +85,15 @@ void yyerror(const char*);
 				}
 			else addstr(&yytext[0]);
 		   }
-    .          { addch(*yytext); }
+    .          { PRINT_BUFF(); }
+    [\n]+      { addstr(&yytext[0]); BEGIN INITIAL; }
 }
 
 <Header>{
-    .+          { print_header(&yytext[0]); }
-    [\n]+       { BEGIN INITIAL;
-    				turn_off_bold();
-    			        turn_off_color(COLOR_PAIR_HEADER); 
+    .          { PRINT_BUFF(); }
+    [\n]       { BEGIN INITIAL;
+    				turn_off_standout();
     				print_newline(); }
-}
-
-<ListItem>{
-    .           { addch(*yytext);  }
-    [\n]+       { BEGIN INITIAL; addch('\n'); }
 }
 
 <Image,Hyperlink>{
@@ -111,48 +105,52 @@ void yyerror(const char*);
 			path[strlen(path) - 1] = '\0';
 		        print_hyperlink(name, path);
 		        free(orig);
-		        BEGIN Line;
+		        BEGIN FmtLine;
   		      }
 }
 
 
 <CodeListing>{
-    ^.+$        { printw("\t%s", &yytext[0]); }
-    "```"       { BEGIN INITIAL; turn_off_bold();     }
+   ^[`]{3}$ 	 { turn_on_bold();
+   			printw("+End Listing %d+\n", lsnum++); 
+			turn_off_bold();
+			BEGIN INITIAL; }
+   ^.+$	         { addstr(&yytext[0]);  }
+   [\n]		 { print_newline(); }
 }
 
 <Italic>{
-    "*"         { BEGIN Line; turn_off_italic(); }
-    "_"         { BEGIN Line; turn_off_italic(); }
-    .          { addch(*yytext); }
+    "*"         { BEGIN FmtLine; turn_off_italic(); }
+    "_"         { BEGIN FmtLine; turn_off_italic(); }
+    .           { PRINT_BUFF(); }
 }
 
 <Bold>{
-    "**"        { BEGIN Line; turn_off_bold(); }
-    "__"        { BEGIN Line; turn_off_bold(); }
-    .           { addch(*yytext); }
+    "**"        { BEGIN FmtLine; turn_off_bold(); }
+    "__"        { BEGIN FmtLine; turn_off_bold(); }
+    .           { PRINT_BUFF(); }
 }
 
 <InlineCode>{
-    "`"         { BEGIN Line; turn_off_bold_underline(); }
-    .           { addch(*yytext); }
+    "`"         { BEGIN FmtLine; turn_off_bold_underline(); }
+    .           { PRINT_BUFF(); }
 }
 
 <Strikethrough>{
-    "~~"        { BEGIN Line; turn_off_underline(); }
-    .           { addch(*yytext); }
+    "~~"        { BEGIN FmtLine; turn_off_underline(); }
+    .           { PRINT_BUFF(); }
 }
 
 <BoldItalic>{
-    "___"	{ BEGIN Line; turn_off_bold(); turn_off_italic(); }
-    "***"	{ BEGIN Line; turn_off_bold(); turn_off_italic(); }
-    .		{ addch(*yytext); }
+    "___"	{ BEGIN FmtLine; turn_off_bold(); turn_off_italic(); }
+    "***"	{ BEGIN FmtLine; turn_off_bold(); turn_off_italic(); }
+    .		{ PRINT_BUFF(); }
 }
 
 <TableCell>{
     "|\n"	{ BEGIN INITIAL;  }
-    "|"         { addch('\t'); }
-    .           { addch(*yytext);  }
+    "|"         { print_tab(); }
+    .           { PRINT_BUFF();  }
 }
 
 <TableSep>[-|] { }
