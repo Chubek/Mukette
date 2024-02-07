@@ -90,12 +90,6 @@ static inline void turn_off_bold_underline(void) {
 static inline void print_text(const char *text) { addstr(text); }
 static inline void print_newline(void) { addch('\n'); }
 
-static inline void print_list_item(const char *point, const char *item) {
-  int y, x;
-  getyx(stdscr, y, x);
-  mvprintw(y, 1, "%s - %s\n", point, item);
-}
-
 static inline void print_hyperlink(const char *name, const char *addr) {
   int y, ny, x;
   getyx(stdscr, y, x);
@@ -109,10 +103,6 @@ static inline void print_hyperlink(const char *name, const char *addr) {
   turn_off_italic();
   getyx(stdscr, ny, x);
   links[curr_link - 1].height = 1 + ny - y;
-}
-
-static inline bool is_approaching(int link_x, int curr_x, int link_len) {
-  return (curr_x >= link_x - link_len) && (curr_x <= link_x + link_len);
 }
 
 static inline void navigate_to_addr(const char *link) {
@@ -132,10 +122,11 @@ static inline void navigate_to_addr(const char *link) {
 
 static inline void jump_to_next_link(int *link_curs_at) {
   int curs_deref = *link_curs_at;
-  if (curs_deref >= curr_link) {
+  if (curs_deref == curr_link) {
     *link_curs_at = curs_deref = 0;
   } else {
     struct Hyperlink *link = &links[curs_deref];
+    *link_curs_at = ++curs_deref;
 
     mvchgat(link->y, link->x, link->width * link->height, A_BOLD | A_REVERSE,
             COLOR_PAIR(0), NULL);
@@ -144,6 +135,12 @@ static inline void jump_to_next_link(int *link_curs_at) {
     int c = getch();
     if (c == KEY_ENTER || c == KEY_COMMAND || c == '\n')
       navigate_to_addr(&link->addr[0]);
+    else if (c == KEY_STAB || c == '\t' || c == KEY_NEXT) {   
+        mvchgat(link->y, link->x, link->width * link->height, A_NORMAL,
+            COLOR_PAIR(0), NULL);
+    	refresh();
+        jump_to_next_link(link_curs_at);
+    }
 
     mvchgat(link->y, link->x, link->width * link->height, A_NORMAL,
             COLOR_PAIR(0), NULL);
