@@ -185,32 +185,15 @@ int main(int argc, char **argv) {
     fclose(yyin);
     refresh();
 
+    int link_at = 0;
     for (;;) {
-        setjmp(jbuf);
-        int ch = getch();
+        int c = getch();
         refresh();
-
-        switch (ch) {
-            case KEY_LEFT:
-                move_left();
-                break;
-            case KEY_RIGHT:
-                move_right();
-                break;
-            case KEY_UP:
-                move_up();
-                break;
-            case KEY_DOWN:
-                move_down();
-                break;
-            case KEY_EXIT:
-            case KEY_F(1):
-                goto done;
-            default:
-                break;
-        }
-
-	navigate_hyperlinks();
+        
+	if (c == KEY_STAB || c == '\t' || c == KEY_NEXT)
+		jump_to_next_link(&link_at);
+	else if (c == KEY_EXIT || c == KEY_F(1) || c == 'q' || c == 'Q')
+		goto done;
     }
 
 done:
