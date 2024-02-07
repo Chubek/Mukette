@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <setjmp.h>
+#include <pthread.h>
 
 #define MAX_LINK 4096
 #define MAX_ADDR 256
@@ -20,33 +21,19 @@
 #define COLOR_PAIR_HEADER 1
 #define COLOR_PAIR_CODE 2
 
-#define KEY_IS_NOT_EXIT(ch) (ch != KEY_EXIT && ch != KEY_F(1))
-#define KEY_IS_VERT_ARROW(ch) (ch == KEY_UP || ch == KEY_DOWN)
-#define KEY_IS_HORIZ_ARROW(ch) (ch == KEY_LEFT || ch == KEY_RIGHT)
-#define KEY_IS_ACTION(ch) (ch == KEY_ENTER || ch == KEY_COMMAND)
+
+#ifndef DEFAULT_BROWSER
+#define DEFAULT_BROWSER "firefox"
+#endif
+
+static pthread_t input_thread = 0;
+jmp_buf jbuf = {0};
 
 static struct Hyperlink {
-  int y, x, len;
+  int y, x, width, height;
   char addr[MAX_ADDR];
 } links[MAX_LINK];
 size_t curr_link = 0;
-
-void navigate_to_addr(const char *link) {
-    char *const argv[] = { "xdg-open", (char*)link, NULL };
-    posix_spawn_file_actions_t file_actions;
-
-    posix_spawn_file_actions_init(&file_actions);
-
-    pid_t pid;
-    if (posix_spawnp(&pid, "xdg-open", &file_actions, NULL, argv, NULL) == 0) {
-        waitpid(pid, NULL, 0);
-    } else {
-        perror("posix_spawnp");
-    }
-
-    posix_spawn_file_actions_destroy(&file_actions);
-}
-
 
 static inline void move_up(void) {
   int y, x;
@@ -88,35 +75,28 @@ static inline void print_header(const char *text) {
 }
 
 static inline void turn_on_color(int icolor) { attron(COLOR_PAIR(icolor)); }
-
 static inline void turn_off_color(int icolor) { attroff(COLOR_PAIR(icolor)); }
 
 static inline void turn_on_bold(void) { attron(A_BOLD); }
-
 static inline void turn_off_bold(void) { attroff(A_BOLD); }
 
 static inline void turn_on_italic(void) { attron(A_ITALIC); }
-
 static inline void turn_off_italic(void) { attroff(A_ITALIC); }
 
 static inline void turn_on_underline(void) { attron(A_UNDERLINE); }
-
 static inline void turn_off_underline(void) { attroff(A_UNDERLINE); }
 
 static inline void turn_on_reverse(void) { attron(A_REVERSE); }
-
 static inline void turn_off_reverse(void) { attroff(A_REVERSE); }
 
 static inline void turn_on_bold_underline(void) {
   attron(A_BOLD | A_UNDERLINE);
 }
-
 static inline void turn_off_bold_underline(void) {
   attroff(A_BOLD | A_UNDERLINE);
 }
 
 static inline void print_text(const char *text) { addstr(text); }
-
 static inline void print_newline(void) { addch('\n'); }
 
 static inline void print_list_item(const char *point, const char *item) {
@@ -126,35 +106,79 @@ static inline void print_list_item(const char *point, const char *item) {
 }
 
 static inline void print_hyperlink(const char *name, const char *addr) {
-  int y, x;
+  int y, ny, x;
   getyx(stdscr, y, x);
+  turn_on_underline();
+  turn_on_italic();
   links[curr_link++] =
-      (struct Hyperlink){.y = y, .x = x, .len = strlen(name), .addr = {0}};
+      (struct Hyperlink){.y = y, .x = x, .width = strlen(name), .addr = {0}};
   strncat(&links[curr_link - 1].addr[0], &addr[0], MAX_ADDR);
   addstr(name);
+  turn_off_underline();
+  turn_off_italic();
+  getyx(stdscr, ny, x);
+  links[curr_link - 1].height = 1 + ny - y;
 }
 
-bool is_approaching(int target, int value, int tolerance) {
-  return (value >= target - tolerance) && (value <= target + tolerance);
+static inline bool is_approaching(int link_x, int curr_x, int link_len) {
+    return (curr_x >= link_x - link_len) && (curr_x <= link_x + link_len);
 }
 
-static inline void navigate_hyperlinks(void) {
-  struct Hyperlink *link;
-  size_t i = 0;
-  int y, x;
-  getyx(stdscr, y, x);
-  while (i < curr_link) {
-    link = &links[i];
-    if (link->y == y && is_approaching(link->x, x, link->len)) {
-      turn_on_reverse();
-      mvprintw(link->y, link->x, "%s", &link->addr[0]);
-      turn_off_reverse();
-      return;
+
+void navigate_to_addr(const char*);
+
+void *input_thread_func(void *arg) {
+    struct Hyperlink *link = (struct Hyperlink *)arg;
+    while (true) {
+        int c = getch();
+        if (c == KEY_ENTER || c == '\n') {
+            navigate_to_addr(link->addr);
+            mvchgat(link->y, link->x, link->width * link->height, A_BOLD | A_REVERSE, COLOR_PAIR(0), NULL);
+	}
+        usleep(10000);
     }
-    i++;
-  }
+    return NULL;
 }
 
+void navigate_hyperlinks() {
+    int y, x;
+    struct Hyperlink *link;
 
+    for (size_t i = 0; i < curr_link; i++) {
+        link = &links[i];
+        getyx(stdscr, y, x);
+        if (link->y == y && is_approaching(link->x, x, link->width)) {
+            mvchgat(link->y, link->x, link->width * link->height, A_BOLD | A_REVERSE, COLOR_PAIR(0), NULL);
+            refresh();
+	    pthread_create(&input_thread, NULL, input_thread_func, (void *)link);
+            pthread_detach(input_thread);
+            pthread_exit(NULL);
+        }
+    }
+
+    longjmp(jbuf, 1);
+
+}
+void navigate_to_addr(const char *link) {
+    #ifdef __linux__
+    char *const argv[] = { "xdg-open", (char*)link, NULL };
+    #elif __APPLE__
+    char *const argv[] = { "open", (char*)link, NULL };
+    #else
+    char *const argv[] = { DEFAULT_BROWSER, (char*)link, NULL };
+    #endif
+
+    posix_spawn_file_actions_t file_actions;
+    posix_spawn_file_actions_init(&file_actions);
+
+    pid_t pid;
+    if (posix_spawnp(&pid, argv[0], &file_actions, NULL, argv, NULL) == 0) {
+        waitpid(pid, NULL, 0);
+    } else {
+        perror("posix_spawnp");
+    }
+
+    posix_spawn_file_actions_destroy(&file_actions);
+}
 
 #endif
