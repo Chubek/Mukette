@@ -24,7 +24,7 @@ void yyerror(const char*);
 %%
 
 <*><<EOF>>	   return 0;
-<*>[\n]       { BEGIN INITIAL; print_newline(); }
+<*>[\n]       { BEGIN INITIAL; print_newline(); fflush(yyin); }
 
 ^[\\].		   { addch(*(yytext + 1)); }
 ^[#]{1,6}[ \t]+    { BEGIN Header; turn_on_color(COLOR_PAIR_HEADER); turn_on_bold(); }
@@ -182,13 +182,11 @@ int main(int argc, char **argv) {
     initialize_colors();
 
     yylex();
+    fclose(yyin);
     refresh();
 
-    if (yyin != stdin)
-        fclose(yyin);
-
-
     for (;;) {
+        setjmp(jbuf);
         int ch = getch();
         refresh();
 
