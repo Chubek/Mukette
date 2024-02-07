@@ -1,5 +1,6 @@
-# Mukette: A Markdown Pager (WIP, but works!)
+# Mukette: A Markdown Pager
 
+**IT HAS BROKE. INTENTIONALLY. DOES NOT WORK UNTIL I FIX IT IN A FEW HOURS. DON'T USE UNLESS AN OLDER BRANCH.**
 
 Mukette is a Markdown pager. It uses ncurses to format Makrodwn files in your terminal. There still remains truckload of things and features to be added (most importantly, link highlighting) but for the moment, you can build it.
 
