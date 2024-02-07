@@ -182,6 +182,7 @@ int main(int argc, char **argv) {
     initscr();
     cbreak();
     noecho();
+    scrollok(stdscr, FALSE);
     keypad(stdscr, TRUE);
     initialize_colors();
 
