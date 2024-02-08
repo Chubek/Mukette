@@ -57,7 +57,7 @@ static inline void highlight_naviable(Naviable *nav) {
 }
 
 static inline void unhighlight_naviable(Naviable *nav) {
-  mvchgat(nav->y, nav->x, nav->width, A_NORMAL, COLOR_PAIR(0), NULL);
+  mvchgat(nav->y, nav->x, nav->width, A_BOLD | A_UNDERLINE, COLOR_PAIR(0), NULL);
   refresh();
 }
 
@@ -82,10 +82,18 @@ void add_naviable_hyperlink(Naviable **navs, const char *name,
   size_t name_len = strlen(name);
   size_t addr_len = strlen(addr);
   
-  const char *name_copy = strndup(name, name_len);
-  const char *addr_copy = strndup(addr, addr_len);
+  char *name_copy = strndup(name, name_len);
+  char *addr_copy = strndup(addr, addr_len);
 
-  insert_naviable(navs, HYPERLINK, y, x, name_len, name_copy, addr_copy, NULL);
+  char *final_addr;
+  if (strncmp(addr_copy, "http://", 7) || strncmp(addr_copy, "https://", 8))
+	  final_addr = addr_copy;
+  else {
+	asprintf(&final_addr, "https://%s", addr_copy);
+	free(addr_copy);
+  }
+
+  insert_naviable(navs, HYPERLINK, y, x, name_len, name_copy, final_addr, NULL);
 }
 
 void add_naviable_listing(Naviable **navs, const char *prog, const char *code) {
@@ -100,41 +108,52 @@ void add_naviable_listing(Naviable **navs, const char *prog, const char *code) {
   insert_naviable(navs, CODE_LISTING, y, x, code_len, code_copy, prog_copy, NULL);
 }
 
+
 void naviable_execute(Naviable *nav, bool use_env, bool exec_allowed) {
-  if (!exec_allowed) {
-    fprintf(stderr, "Warning: Execution of external programs is prohibited unless you pass -x "
-            "to the program\n");
-    return;
-  }
+    if (!exec_allowed) {
+        beep();
+        return;
+    }
 
-  if (nav->type == HYPERLINK) {
-    char *buffer, *open;
-#ifdef __linux__
-    open = "xdg-open";
-#elif __APPLE__
-    open = "open";
-#else
-    open = "chrome";
-#endif
+    if (nav->type == HYPERLINK) {
+        char *open_command;
+        #ifdef __linux__
+            open_command = "xdg-open";
+        #elif __APPLE__
+            open_command = "open";
+        #else
+            open_command = "chrome";
+        #endif
 
-    asprintf(&buffer, "%s %s", open, nav->contents);
-    system(buffer);
-    free(buffer);
-  } else {
-    char *buffer;
-    char tmpfile_name[] = {'/', 't', 'm', 'p', '/', 'X',
-                           'X', 'X', '.', 'c', '\0'};
-    int fdesc = mkstemp(&tmpfile_name[0]);
-    FILE *fstream = fdopen(fdesc, "w");
-    fputs(nav->contents, fstream);
-    asprintf(&buffer, "cat %s | %s %s", &tmpfile_name[0],
-             use_env ? "env -S" : "", nav->tag);
-    system(buffer);
-    free(buffer);
-    fclose(fstream);
-    unlink(&tmpfile_name[0]);
-  }
+        char *command;
+        asprintf(&command, "%s %s", open_command, nav->tag);
+        system(command);
+        free(command);
+    } else {
+        char tmpfile_name[] = "/tmp/XXXXXX.c";
+        int fdesc = mkstemp(tmpfile_name);
+        if (fdesc == -1) {
+            fprintf(stderr, "Error creating temporary file\n");
+            return;
+        }
+        FILE *fstream = fdopen(fdesc, "w");
+        if (fstream == NULL) {
+            fprintf(stderr, "Error opening temporary file\n");
+            return;
+        }
+        fputs(nav->contents, fstream);
+        fclose(fstream);
+
+        char *command;
+        asprintf(&command, "cat %s | %s %s", tmpfile_name,
+                 use_env ? "env -S" : "", nav->tag);
+        system(command);
+        free(command);
+
+        unlink(tmpfile_name);
+    }
 }
+
 
 void poll_and_navigate(Naviable **navs, bool use_env, bool exec_allowed) {
   if (*navs == NULL) {
@@ -149,7 +168,7 @@ void poll_and_navigate(Naviable **navs, bool use_env, bool exec_allowed) {
   for (;;) {
 	int c = getch();
 
-	if (c == '\t' || c == KEY_STAB || c == KEY_LEFT) {
+	if (c == KEY_LEFT) {
 		unhighlight_naviable(current_nav);
 		current_nav = current_nav->next == NULL ? current_nav : current_nav->next;
 	} else if (c == KEY_RIGHT) {
@@ -158,10 +177,9 @@ void poll_and_navigate(Naviable **navs, bool use_env, bool exec_allowed) {
 	} else if (c == 'r' || c == 'R') {
 		unhighlight_naviable(current_nav);
 		current_nav = head;
-	}
-	else if (c == KEY_EXIT || c == KEY_F(1) || c == 'q' || c == 'Q')
+	} else if (c == KEY_EXIT || c == KEY_F(1) || c == 'q' || c == 'Q')
 		return;
-	else if (c == KEY_COMMAND || c == '\r')
+	else if (c == KEY_COMMAND || c == KEY_ENTER || c == '\r' || c == ' ' ||  c == '\t') 
 		naviable_execute(current_nav, use_env, exec_allowed);
 
 	highlight_naviable(current_nav);
