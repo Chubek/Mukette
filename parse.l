@@ -8,14 +8,17 @@
 
 #include "pager.h"
 
+extern void add_naviable_hyperlink(Naviable **navs, const char *name, const char *addr);
+extern void add_naviable_listing(Naviable **navs, const char *prog, const char *code);
 extern int yywrap(void);
-Navible *navs = NULL;
 
+
+Naviable *navs = NULL;
 char *last_tag = NULL;
 
 static inline char *alloc_sh(void) { 
    char *b = calloc(1, 3);
-   strncat(&b[0], "sh", 2);
+   strcat(&b[0], "sh");
    return b;
 }
 
