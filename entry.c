@@ -14,7 +14,7 @@ extern int yylex(void);
 
 void get_options(bool *x_flag, bool *e_flag) {
   int opt;
-  while ((opt = getopt(argc, argv, "xe")) != -1) {
+  while ((opt = getopt(argc, argv, "xehv")) != -1) {
     switch (opt) {
     case 'x':
       *x_flag = true;
@@ -27,7 +27,7 @@ void get_options(bool *x_flag, bool *e_flag) {
     case 'v':
       display_version_and_exit();
     default:
-      fprintf(stderr, "Usage: %s [-x] [-e] FILES...\n", argv[0]);
+      fprintf(stderr, "Usage: %s [-x] [-e] [-h] [-v] FILES...\n", argv[0]);
       exit(EXIT_FAILURE);
     }
   }
@@ -58,7 +58,7 @@ int main(int largc, char **largv) {
 
   if (!yywrap()) {
     yylex();
-    poll_and_navigate(&navs, x_flag, e_flag);
+    poll_and_navigate(&navs, e_flag, x_flag);
   }
 
   terminate();
