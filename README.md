@@ -1,35 +1,41 @@
-# Mukette: A Markdown Pager
-
-**IT HAS BROKE. INTENTIONALLY. DOES NOT WORK UNTIL I FIX IT IN A FEW HOURS. DON'T USE UNLESS AN OLDER BRANCH.**
-
-Mukette is a Markdown pager. It uses ncurses to format Makrodwn files in your terminal. There still remains truckload of things and features to be added (most importantly, link highlighting) but for the moment, you can build it.
+# Mukette: A Pager for Markdown, for UNIX-based Systems
 
 
-```
-sudo apt-get install ncurses flex
-make
-```
+A 'pager' is a utility that takes a markup text (say, Roff) and displays that text, formatted, in the terminal. The first pager was `nroff(1)` for the aforementioned Roff, and you may still find `nroff(1)` on UNIX-based systems.
 
-Then you can:
+Mukette follows the same template. You pass it one, or several Markdown files, and it pages them. For example, you may use `example-document.md` to test Mukette.
 
 ```
-./mukette example-document.md
-cat example-document.md | ./mukette
+mukette example-document.md
 ```
 
-You can also compile the automata as an Graphviz FSM using:
+## Installing
+
+You need ncurses and Flex to build Mukette. ncurses is probably already on your system. But just to be safe:
 
 ```
-sudo apt-get install graphviz
-make graph
+sudo apt-get install ncurses-dev flex
 ```
 
-This will create `parse.png` which contains the Finite State Machine which I am using to parse Markdown with in Flex. You will need Graphviz.
+And then in the the root directory, run `make` and `make install`:
+
+```
+make && sudo make install
+```
+
+The man page will be installed alongside. The man page contains all the info about using Mukette:
+
+```
+man 1 mukette
+```
+
+## Disclaimer
+
+Mukette is a v1 product, it still has a lot of rough edges. Report any bugs to Issues tab in the Github repository.
 
 
-## What is a Pager?
+## Windows
 
-This basically acts like the `man` or `more` and `less` utility. It will display Makrodwn, formatted, in your terminal.
-
+On Windows you can use WSL2 or CygWin/MSys.
 
 
