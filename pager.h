@@ -44,6 +44,9 @@ void add_naviable_hyperlink(Naviable **navs, const char *name,
                             const char *addr);
 void add_naviable_listing(Naviable **navs, const char *prog, const char *code);
 void naviable_execute(Naviable *nav, bool use_env, bool exec_allowed);
+void poll_and_navigate(Naviable **navs, bool use_env, bool exec_allowed);
+
+extern void free_navs(void);
 
 static inline void initialize(void) {
   initscr();
@@ -52,7 +55,7 @@ static inline void initialize(void) {
   scrollok(stdscr, FALSE);
   keypad(stdscr, TRUE);
   initialize_colors();
-  atext(free_naviable_list);
+  atext(free_navs);
 }
 
 static inline void terminate(void) {
@@ -129,16 +132,31 @@ static inline void unhighlight_naviable(Naviable *nav) {
   mvchgat(nav->y, nav->x, nav->width, A_NORMAL, COLOR_PAIR(0), NULL);
 }
 
-static inline void next_naviable(Naviable *nav) {
+static inline bool next_naviable(Naviable *nav) {
   if (nav->next == NULL)
-    return;
+    return false;
   nav = nav->next;
+  return true;
 }
 
-static inline void previous_naviable(Naviable *nav) {
+static inline bool previous_naviable(Naviable *nav) {
   if (nav->prev == NULL)
-    return;
+    return false;
   nav = nav->prev;
+  return true;
+}
+
+static inline void display_help_and_exit(const char *argv0) {
+  fprintf(stderr, "Usage: %s [-x] [-e] FILES...\n", argv0);
+  fprintf(stderr, "-x enables execution of externals. -e allows use of env(1) "
+                  "to run them\n");
+  fprintf(stderr, "Copyright: 2024 Chubak Bidpaa, Released Under GPLv3\n");
+  exit(EXIT_FAILURE);
+}
+
+static inline void display_version_and_exit(void) {
+  fprintf(stderr, "v0.1.1 Beta");
+  exit(EXIT_FAILURE);
 }
 
 #endif
