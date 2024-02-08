@@ -20,7 +20,7 @@ function abs(i,j,c)
 }
 ```
 
-And this is a code listing with a tag:
+And this is a code listing with a tag (the tag is **REMOVED**):
 
 ```python
 def abs(num: int):
