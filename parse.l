@@ -4,12 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+
+
 #include "pager.h"
 
-int lsnum = 1;
-
 extern int yywrap(void);
-extern FILE *yyin = NULL;
+Navible *navs = NULL;
 
 %}
 
