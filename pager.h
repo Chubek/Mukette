@@ -13,7 +13,7 @@
 #define MAX_ADDR 256
 #define MAX_CONTENTS 512
 
-#define LINES_OFFS 2
+#define LINES_OFFS 7
 #define COLS_OFFS 6
 
 #define COLOR_PAIR_HEADER 1
