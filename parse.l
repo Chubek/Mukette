@@ -11,6 +11,14 @@
 extern int yywrap(void);
 Navible *navs = NULL;
 
+char *last_tag = NULL;
+
+static inline char *alloc_sh(void) { 
+   char *b = calloc(1, 3);
+   strncat(&b[0], "sh", 2);
+   return b;
+}
+
 %}
 
 %x FmtLine ImagePath Header CodeListing Image Hyperlink LinkURL FormatStart Italic Bold BoldItalic InlineCode Strikethrough TableCell TableSep
@@ -30,12 +38,9 @@ Navible *navs = NULL;
 				for (int i = 0; i < yyleng; i++) { addch('-'); }
 					print_newline(); };
 
-
-^[`]{3}$	    { turn_on_bold(); printw("+Begin Listing %d (Untagged):", lsnum);
-				turn_off_bold();
+^[`]{3}$	     { last_tag = alloc_sh();
 				BEGIN CodeListing; }
-^[`]{3}.+$	    { turn_on_bold(); printw("+Begin Listing %d (%s):", lsnum, &yytext[3]);
-				turn_off_bold();
+^[`]{3}.+$	     { last_tag = strndup(&yytext[3], yyleng - 3);
 				BEGIN CodeListing; }
 $[^*~`_-]+$	     { addstr(&yytext[0]); print_newline(); }
 ^.		     { BEGIN FmtLine; PRINT_BUFF(); }
@@ -103,7 +108,10 @@ $[^*~`_-]+$	     { addstr(&yytext[0]); print_newline(); }
 		        name = strtok(hl, "](");
 		        path = strtok(NULL, "](");
 			path[strlen(path) - 1] = '\0';
-		        print_hyperlink(name, path);
+			turn_on_bold_underline();
+			addstr(name);
+			turn_off_bold_underline();
+			add_naviable_hyperlink(&navs, name, path);
 		        free(orig);
 		        BEGIN FmtLine;
   		      }
@@ -111,11 +119,10 @@ $[^*~`_-]+$	     { addstr(&yytext[0]); print_newline(); }
 
 
 <CodeListing>{
-   ^[`]{3}$ 	 { turn_on_bold();
-   			printw("+End Listing %d+\n", lsnum++); 
-			turn_off_bold();
-			BEGIN INITIAL; }
-   ^.+$	         { addstr(&yytext[0]);  }
+   (^.+$)+^[`]{3}$  { addstr(&yytext[0]); 
+   			add_naviable_listing(&navs, last_tag, &yytext[0]); 
+			free(last_tag);
+			BEGIN INITIAL;  }
    [\n]		 { print_newline(); }
 }
 
