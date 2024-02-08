@@ -37,10 +37,10 @@ int yywrap(void) {
   if (yyin == NULL && !isatty(STDIN_FILENO))
     yyin = stdin;
   else if (yyin == NULL && optind < argc)
-    yyin = fopen(argv[optind], "r");
+    yyin = fopen(argv[optind++], "r");
   else if (yyin != NULL && optind < argc) {
     fclose(yyin);
-    yyin = fopen(argv[optind], "r");
+    yyin = fopen(argv[optind++], "r");
   } else if (yyin == NULL && isatty(STDIN_FILENO) && optind == argc)
     return 1;
   else if (yyin != NULL && optind == argc)
