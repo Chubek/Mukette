@@ -6,6 +6,7 @@ BINDIR = /usr/local/bin
 
 LEX_SRC = parse.l
 ENTRY_SRC = entry.c
+PAGER_SRC = pager.c
 
 DOT_SRC = parse.dot
 DOT_PNG = parse.png
@@ -19,7 +20,7 @@ graph: $(DOT_SRC)
 	dot -Tpng -o $(DOT_PNG) $(DOT_SRC)
 
 $(LEX_EXE): $(LEX_GEN) $(ENTRY_SRC)
-	$(CC) $(DEBUG) -o $@ $(ENTRY_SRC) $(LEX_GEN) -lfl -lcurses
+	$(CC) $(DEBUG) -o $@ $(ENTRY_SRC) $(PAGER_SRC) $(LEX_GEN) -lfl -lcurses
 
 $(LEX_GEN): $(LEX_SRC)
 	$(LEX) -o$@ $^
