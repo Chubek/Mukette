@@ -18,7 +18,6 @@ typedef struct Navigatable {
 void insert_naviable(Naviable **navs, NaviableType type, int y, int x,
                      int width, const char *contents, const char *tag,
                      WINDOW *win) {
-  size_t contents_len = strlen(contents);
   Naviable *nav = (Naviable *)calloc(1, sizeof(Naviable));
   nav->type = type;
   nav->y = y;
@@ -30,7 +29,7 @@ void insert_naviable(Naviable **navs, NaviableType type, int y, int x,
 
   nav->next = *navs;
   nav->prev = NULL;
-  if (navs != NULL) {
+  if (*navs != NULL) {
     (*navs)->prev = nav;
   }
   *navs = nav;
@@ -54,10 +53,12 @@ void free_naviable_list(Naviable *navs) {
 
 static inline void highlight_naviable(Naviable *nav) {
   mvchgat(nav->y, nav->x, nav->width, A_STANDOUT, COLOR_PAIR(0), NULL);
+  refresh();
 }
 
 static inline void unhighlight_naviable(Naviable *nav) {
   mvchgat(nav->y, nav->x, nav->width, A_NORMAL, COLOR_PAIR(0), NULL);
+  refresh();
 }
 
 static inline bool next_naviable(Naviable *nav) {
@@ -79,18 +80,24 @@ void add_naviable_hyperlink(Naviable **navs, const char *name,
   GETPOS(y, x);
 
   size_t name_len = strlen(name);
-  insert_naviable(navs, HYPERLINK, y, x, name_len, name, addr, NULL);
+  size_t addr_len = strlen(addr);
+  
+  const char *name_copy = strndup(name, name_len);
+  const char *addr_copy = strndup(addr, addr_len);
 
-  refresh();
+  insert_naviable(navs, HYPERLINK, y, x, name_len, name_copy, addr_copy, NULL);
 }
 
 void add_naviable_listing(Naviable **navs, const char *prog, const char *code) {
   GETPOS(y, x);
 
+  size_t prog_len = strlen(prog);
   size_t code_len = strlen(code);
-  insert_naviable(navs, CODE_LISTING, y, x, code_len, code, prog, NULL);
+  
+  const char *prog_copy = strndup(prog, prog_len);
+  const char *code_copy = strndup(code, code_len);
 
-  refresh();
+  insert_naviable(navs, CODE_LISTING, y, x, code_len, code_copy, prog_copy, NULL);
 }
 
 void naviable_execute(Naviable *nav, bool use_env, bool exec_allowed) {
@@ -130,45 +137,35 @@ void naviable_execute(Naviable *nav, bool use_env, bool exec_allowed) {
 }
 
 void poll_and_navigate(Naviable **navs, bool use_env, bool exec_allowed) {
-  int c = 0;
-  Naviable *current_nav = *navs;
+  if (*navs == NULL) {
+	int c = getch();
+	if (c == KEY_EXIT || c == KEY_F(1) || c == 'q' || c == 'Q')
+		return;
+  }
+
+  Naviable *current_nav, *head;
+  current_nav = head = *navs;
 
   for (;;) {
-    c = getch();
-    highlight_naviable(current_nav);
-    switch (c) {
-    case KEY_RIGHT:
-    case KEY_NEXT:
-    case 'n':
-    case 'N':
-      unhighlight_naviable(current_nav);
-      if (!next_naviable(current_nav))
-        current_nav = *navs;
-      break;
-    case KEY_LEFT:
-    case KEY_PREVIOUS:
-    case 'p':
-    case 'P':
-      unhighlight_naviable(current_nav);
-      if (!previous_naviable(current_nav))
-        current_nav = *navs;
-      break;
-    case KEY_STAB:
-    case '\t':
-      unhighlight_naviable(current_nav);
-      if (!next_naviable(current_nav))
-        current_nav = *navs;
-      break;
-    case KEY_ENTER:
-    case '\r':
-    case ' ':
-      naviable_execute(current_nav, use_env, exec_allowed);
-    case KEY_EXIT:
-    case 'q':
-    case 'Q':
-      return;
-    default:
-      break;
-    }
+	int c = getch();
+
+	if (c == '\t' || c == KEY_STAB || c == KEY_LEFT) {
+		unhighlight_naviable(current_nav);
+		current_nav = current_nav->next == NULL ? current_nav : current_nav->next;
+	} else if (c == KEY_RIGHT) {
+		unhighlight_naviable(current_nav);
+		current_nav = current_nav->prev == NULL ? head : current_nav->prev;
+	} else if (c == 'r' || c == 'R') {
+		unhighlight_naviable(current_nav);
+		current_nav = head;
+	}
+	else if (c == KEY_EXIT || c == KEY_F(1) || c == 'q' || c == 'Q')
+		return;
+	else if (c == KEY_COMMAND || c == '\r')
+		naviable_execute(current_nav, use_env, exec_allowed);
+
+	highlight_naviable(current_nav);
   }
+
+
 }
