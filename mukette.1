@@ -17,7 +17,18 @@ Allows execution of external programs when navigating hyperlinks. If this option
 Allows execution of external programs embedded in the Markdown file. When navigating to links containing executable commands, Mukette will execute them if this option is provided. Note that this can pose a security risk if the Markdown file is not trusted.
 
 .SH USAGE
-You can pass a Markdown-laden buffer via STDIN or files via command-line arguments. If both are provided, both STDIN and arguments are used. No need to pass a '-' when using STDIN. In the page window, navigate between hyperlinks with TAB. Press Q, F1, or the default exit key to exit the pager.
+You can pass a Markdown-laden buffer via STDIN or files via command-line arguments. If both are provided, both STDIN and arguments are used. No need to pass a '-' when using STDIN. In the pagination window, use \fBLeft Arrow\fR and \fBRight Arrow\fR to navigate between hyperlinks. If you wish to click a hyperlink, press \fBTab\fR or \fBSpace\fR. Press \fBQ\fR to quit the pagination window. You need to pass \fI-x\fR to be able to open the browser.
+
+Summary of the keys:
+
+.IP "\fBLeft Arrow\fR"
+Navigate to the previous hyperlink.
+.IP "\fBRight Arrow\fR"
+Navigate to the next hyperlink.
+.IP "\fBSpace\fR, \fBTab\fR"
+Navigate to hyperlink (only if \fI-x\fR is passed).
+.IP "\fBQ\fR"
+Quit the pagination window.
 
 .SH AUTHOR
 Mukette was written by Chubak Bidpaa (chubakbidpaa@gmail.com).
