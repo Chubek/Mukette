@@ -1,23 +1,42 @@
-.TH MUKETTE 1 "February 2024" "Version 1.0" "MUKETTE Manual"
+.TH MUKETTE 1 "February 2024" "Version 1.1" "MUKETTE Manual"
 .SH NAME
 mukette \- Parse Markdown and display using ncurses
 .SH SYNOPSIS
-\fBmukette\fR [\fIFILES...\fR]
+\fBmukette\fR [\fB\-x\fR] [\fB\-e\fR] [\fIFILES...\fR]
 .SH DESCRIPTION
 Mukette is a utility that parses Markdown-formatted text and displays it using ncurses. It provides a paginated view for comfortable reading, with Markdown elements formatted into Bold, Italic, etc. Mukette also handles Markdown tables. If a FILE is provided, Mukette reads content from that file; otherwise, it accepts input via STDIN.
+
+The options are as follows:
+
+.TP
+\fB\-x\fR
+Allows execution of external programs when navigating hyperlinks. If this option is provided, Mukette will open URLs in the default browser or appropriate program based on the platform.
+
+.TP
+\fB\-e\fR
+Allows execution of external programs embedded in the Markdown file. When navigating to links containing executable commands, Mukette will execute them if this option is provided. Note that this can pose a security risk if the Markdown file is not trusted.
+
 .SH USAGE
 You can pass a Markdown-laden buffer via STDIN or files via command-line arguments. If both are provided, both STDIN and arguments are used. No need to pass a '-' when using STDIN. In the page window, navigate between hyperlinks with TAB. Press Q, F1, or the default exit key to exit the pager.
+
 .SH AUTHOR
 Mukette was written by Chubak Bidpaa (chubakbidpaa@gmail.com).
+
 .SH BUGS
 Mukette is a version 1 product with many shortcomings and lacks expected features. Report errors on the GitHub issue page (github.com/Chubek/Mukette/Issues).
+
 .SH COPYRIGHT
 Copyright (C) 2024 Chubak Bidpaa
+
 .PP
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
 .PP
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
 .PP
 You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 .SH SEE ALSO
 \fBless\fR(1), \fBmore\fR(1), \fBmost\fR(1), \fBpandoc\fR(1), \fBmarkdown\fR(1), \fBncurses\fR(3)
+
