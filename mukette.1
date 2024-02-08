@@ -1,16 +1,16 @@
 .TH MUKETTE 1 "February 2024" "Version 1.0" "MUKETTE Manual"
 .SH NAME
-mukette \- Parse Markdown and page it using ncurses
+mukette \- Parse Markdown and display using ncurses
 .SH SYNOPSIS
-\fBmukette\fR [\fIFILE\fR]
+\fBmukette\fR [\fIFILES...\fR]
 .SH DESCRIPTION
-Mukette is a utility that parses Markdown formatted text and displays it using ncurses, providing a paginated view for comfortable reading. If a FILE is provided as a positional argument, Mukette will read the content from that file. Alternatively, Mukette can accept input via STDIN if no FILE is provided.
-.SH OPTIONS
-.TP
-\fB\-h, \-\-help\fR
-Display this help message and exit.
+Mukette is a utility that parses Markdown-formatted text and displays it using ncurses. It provides a paginated view for comfortable reading, with Markdown elements formatted into Bold, Italic, etc. Mukette also handles Markdown tables. If a FILE is provided, Mukette reads content from that file; otherwise, it accepts input via STDIN.
+.SH USAGE
+You can pass a Markdown-laden buffer via STDIN or files via command-line arguments. If both are provided, both STDIN and arguments are used. No need to pass a '-' when using STDIN. In the page window, navigate between hyperlinks with TAB. Press Q, F1, or the default exit key to exit the pager.
 .SH AUTHOR
-Mukette was written by Chubak Bidpaa.
+Mukette was written by Chubak Bidpaa (chubakbidpaa@gmail.com).
+.SH BUGS
+Mukette is a version 1 product with many shortcomings and lacks expected features. Report errors on the GitHub issue page (github.com/Chubek/Mukette/Issues).
 .SH COPYRIGHT
 Copyright (C) 2024 Chubak Bidpaa
 .PP
@@ -19,4 +19,5 @@ This program is free software: you can redistribute it and/or modify it under th
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 .PP
 You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+.SH SEE ALSO
+\fBless\fR(1), \fBmore\fR(1), \fBmost\fR(1), \fBpandoc\fR(1), \fBmarkdown\fR(1), \fBncurses\fR(3)
