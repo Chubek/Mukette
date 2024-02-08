@@ -24,22 +24,24 @@
 #define DEFAULT_BROWSER "firefox"
 #endif
 
-#define GETPOS(Y, X)  int Y, X; getyx(stdscr, Y, X)
-#define GETMAX(Y, X)  int Y, X; getmaxyx(stdscr, Y, X);
+#define GETPOS(Y, X)                                                           \
+  int Y, X;                                                                    \
+  getyx(stdscr, Y, X)
+#define GETMAX(Y, X)                                                           \
+  int Y, X;                                                                    \
+  getmaxyx(stdscr, Y, X);
 
 #define PRINT_BUFF() addch(*yytext)
 
 typedef struct Navigatable Naviable;
 typedef enum NavigatableType NaviableType;
 
-void insert_naviable(NaviableType type, 
-		int y, int x, int width,
-		const char *contents, const char *tag);
+void insert_naviable(NaviableType type, int y, int x, int width,
+                     const char *contents, const char *tag);
 void free_naviable_list(void);
 void add_naviable_hyperlink(const char *name, const char *addr);
 void add_naviable_listing(const char *prog, const char *code);
 void add_naviable_lsitem(const char *bullet, const char *text);
-
 
 static inline void initialize(void) {
   initscr();
@@ -116,5 +118,25 @@ static inline void turn_off_all(void) { attroff(A_ATTRIBUTES); }
 
 static inline void print_newline(void) { addch('\n'); }
 static inline void print_tab(void) { addch('\t'); }
+
+static inline void highlight_naviable(Naviable *nav) {
+  mvchgat(nav->y, nav->x, nav->width, A_STANDOUT, COLOR_PAIR(0), NULL);
+}
+
+static inline void unhighlight_naviable(Naviable *nav) {
+  mvchgat(nav->y, nav->x, nav->width, A_NORMAL, COLOR_PAIR(0), NULL);
+}
+
+static inline void next_naviable(Naviable *nav) {
+  if (nav->next == NULL)
+    return;
+  nav = nav->next;
+}
+
+static inline void previous_naviable(Naviable *nav) {
+  if (nav->prev == NULL)
+    return;
+  nav = nav->prev;
+}
 
 #endif
