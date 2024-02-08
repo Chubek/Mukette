@@ -118,7 +118,6 @@ $[^*~`_-]+$	     { addstr(&yytext[0]); print_newline(); }
    ^[`]{3}$   BEGIN INITIAL;
    "\\`"      addch('`');
    [^`]	      addch(*yytext);
-   [\n]	      print_newline();
 }
 
 <Italic>{
