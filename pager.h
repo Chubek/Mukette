@@ -1,6 +1,7 @@
 #ifndef PAGER_H
 #define PAGER_H
 
+#define _GNU_SOURCE
 #include <curses.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -39,14 +40,20 @@ typedef enum NavigatableType NaviableType;
 void insert_naviable(Naviable **navs, NaviableType type, int y, int x,
                      int width, const char *contents, const char *tag,
                      WINDOW *win);
+void naviable_execute(Naviable *nav, bool use_env, bool exec_allowed);
+
 void free_naviable_list(Naviable *navs);
+void poll_and_navigate(Naviable **navs, bool use_env, bool exec_allowed);
+
 void add_naviable_hyperlink(Naviable **navs, const char *name,
                             const char *addr);
 void add_naviable_listing(Naviable **navs, const char *prog, const char *code);
-void naviable_execute(Naviable *nav, bool use_env, bool exec_allowed);
-void poll_and_navigate(Naviable **navs, bool use_env, bool exec_allowed);
 
-extern void free_navs(void);
+static inline void initialize_colors(void);
+static inline void highlight_naviable(Naviable *nav);
+static inline void unhighlight_naviable(Naviable *nav);
+static inline bool next_naviable(Naviable *nav);
+static inline bool previous_naviable(Naviable *nav);
 
 static inline void initialize(void) {
   initscr();
@@ -55,13 +62,9 @@ static inline void initialize(void) {
   scrollok(stdscr, FALSE);
   keypad(stdscr, TRUE);
   initialize_colors();
-  atext(free_navs);
 }
 
-static inline void terminate(void) {
-  endwin();
-  fee_navs();
-}
+static inline void terminate(void) { endwin(); }
 
 static inline void move_up(void) {
   int y, x;
@@ -123,28 +126,6 @@ static inline void turn_off_all(void) { attroff(A_ATTRIBUTES); }
 
 static inline void print_newline(void) { addch('\n'); }
 static inline void print_tab(void) { addch('\t'); }
-
-static inline void highlight_naviable(Naviable *nav) {
-  mvchgat(nav->y, nav->x, nav->width, A_STANDOUT, COLOR_PAIR(0), NULL);
-}
-
-static inline void unhighlight_naviable(Naviable *nav) {
-  mvchgat(nav->y, nav->x, nav->width, A_NORMAL, COLOR_PAIR(0), NULL);
-}
-
-static inline bool next_naviable(Naviable *nav) {
-  if (nav->next == NULL)
-    return false;
-  nav = nav->next;
-  return true;
-}
-
-static inline bool previous_naviable(Naviable *nav) {
-  if (nav->prev == NULL)
-    return false;
-  nav = nav->prev;
-  return true;
-}
 
 static inline void display_help_and_exit(const char *argv0) {
   fprintf(stderr, "Usage: %s [-x] [-e] FILES...\n", argv0);
