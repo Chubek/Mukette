@@ -36,12 +36,14 @@
 typedef struct Navigatable Naviable;
 typedef enum NavigatableType NaviableType;
 
-void insert_naviable(NaviableType type, int y, int x, int width,
-                     const char *contents, const char *tag);
-void free_naviable_list(void);
-void add_naviable_hyperlink(const char *name, const char *addr);
-void add_naviable_listing(const char *prog, const char *code);
-void add_naviable_lsitem(const char *bullet, const char *text);
+void insert_naviable(Naviable **navs, NaviableType type, int y, int x,
+                     int width, const char *contents, const char *tag,
+                     WINDOW *win);
+void free_naviable_list(Naviable *navs);
+void add_naviable_hyperlink(Naviable **navs, const char *name,
+                            const char *addr);
+void add_naviable_listing(Naviable **navs, const char *prog, const char *code);
+void naviable_execute(Naviable *nav, bool use_env, bool exec_allowed);
 
 static inline void initialize(void) {
   initscr();
