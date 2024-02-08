@@ -14,13 +14,6 @@ extern int yywrap(void);
 
 
 Naviable *navs = NULL;
-char *last_tag = NULL;
-
-static inline char *alloc_sh(void) { 
-   char *b = calloc(1, 3);
-   strcat(&b[0], "sh");
-   return b;
-}
 
 %}
 
@@ -41,10 +34,10 @@ static inline char *alloc_sh(void) {
 				for (int i = 0; i < yyleng; i++) { addch('-'); }
 					print_newline(); };
 
-^[`]{3}$	     { last_tag = alloc_sh();
-				BEGIN CodeListing; }
-^[`]{3}.+$	     { last_tag = strndup(&yytext[3], yyleng - 3);
-				BEGIN CodeListing; }
+^[`]{3}$	      BEGIN CodeListing;
+^[`]{3}.+$	      BEGIN CodeListing;
+
+
 $[^*~`_-]+$	     { addstr(&yytext[0]); print_newline(); }
 ^.		     { BEGIN FmtLine; PRINT_BUFF(); }
 
@@ -111,10 +104,10 @@ $[^*~`_-]+$	     { addstr(&yytext[0]); print_newline(); }
 		        name = strtok(hl, "](");
 		        path = strtok(NULL, "](");
 			path[strlen(path) - 1] = '\0';
+			add_naviable_hyperlink(&navs, name, &path[0]);
 			turn_on_bold_underline();
-			addstr(name);
+     		        addstr(name);
 			turn_off_bold_underline();
-			add_naviable_hyperlink(&navs, name, path);
 		        free(orig);
 		        BEGIN FmtLine;
   		      }
@@ -122,11 +115,10 @@ $[^*~`_-]+$	     { addstr(&yytext[0]); print_newline(); }
 
 
 <CodeListing>{
-   (^.+$)+^[`]{3}$  { addstr(&yytext[0]); 
-   			add_naviable_listing(&navs, last_tag, &yytext[0]); 
-			free(last_tag);
-			BEGIN INITIAL;  }
-   [\n]		 { print_newline(); }
+   ^[`]{3}$   BEGIN INITIAL;
+   "\\`"      addch('`');
+   [^`]	      addch(*yytext);
+   [\n]	      print_newline();
 }
 
 <Italic>{
