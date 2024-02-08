@@ -60,7 +60,7 @@ static inline void initialize(void) {
 
 static inline void terminate(void) {
   endwin();
-  fee_naviable_list();
+  fee_navs();
 }
 
 static inline void move_up(void) {
