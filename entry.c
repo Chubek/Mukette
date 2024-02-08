@@ -4,9 +4,13 @@
 
 #include "pager.h"
 
-extern FILE *yyin = NULL;
-extern Naviable *navs = NULL;
-int argc, char *argv[];
+extern FILE *yyin;
+extern Naviable *navs;
+extern void free_naviable_list(Naviable *navs);
+extern void poll_and_navigate(Naviable **navs, bool use_env, bool exec_allowed);
+int argc;
+char **argv;
+extern int yylex(void);
 
 void get_options(bool *x_flag, bool *e_flag) {
   int opt;
@@ -30,34 +34,35 @@ void get_options(bool *x_flag, bool *e_flag) {
 }
 
 int yywrap(void) {
-  if (optind == argc && isatty(STDIN_FILENO))
-    return 1;
-  else if (!isatty(STDIN_FILENO)) {
+  if (yyin == NULL && !isatty(STDIN_FILENO))
     yyin = stdin;
-    return 1;
-  } else if (yyin != NULL && yyin != stdin)
+  else if (yyin == NULL && optind < argc)
+    yyin = fopen(argv[optind], "r");
+  else if (yyin != NULL && optind < argc) {
     fclose(yyin);
-  yyin = fopen(argv[optind++], "r");
+    yyin = fopen(argv[optind], "r");
+  } else if (yyin == NULL && isatty(STDIN_FILENO) && optind == argc)
+    return 1;
+  else if (yyin != NULL && optind == argc)
+    return 1;
   return 0;
 }
 
-void free_navs(void) { free_naviable_list(navs); }
-
-int main(int largc, char *largv[]) {
+int main(int largc, char **largv) {
   argc = largc, argv = largv;
 
-  bool x_flag = false, e_eflag = false;
-
+  bool x_flag = false, e_flag = false;
   get_options(&x_flag, &e_flag);
 
   initialize();
 
-  if (!yywrap())
-    yylext();
-
-  poll_and_navigate(&navs, x_flag, e_flag);
+  if (!yywrap()) {
+    yylex();
+    poll_and_navigate(&navs, x_flag, e_flag);
+  }
 
   terminate();
+  free_naviable_list(navs);
 
   return 0;
 }
