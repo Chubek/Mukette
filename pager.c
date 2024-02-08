@@ -105,3 +105,42 @@ void naviable_execute(Naviable *nav, bool use_env, bool exec_allowed) {
     unlink(&tmpfile_name[0]);
   }
 }
+
+void poll_and_navigate(Naviable **navs, bool use_env, bool exec_allowed) {
+  int c = 0;
+  Naviable *current_nav = *navs;
+
+  while (;;) {
+    c = getch();
+    highlight_naviable(current_nav);
+    switch (c) {
+    case KEY_RIGHT:
+    case KEY_NEXT:
+    case 'n':
+    case 'N':
+      unhighligh_navible(current_nav);
+      if (!next_naviable(current_nav))
+        current_nav = *navs;
+      break;
+    case KEY_LEFT:
+    case KEY_PREV:
+    case 'p':
+    case 'N':
+      unhighlight_naviable(current_nav);
+      if (!previous_naviable(current_nav))
+        current_nav = *navs;
+      break;
+    case KEY_ENTER:
+    case KEY_SPACE:
+    case '\r':
+    case ' ':
+      naviable_execute(current_nav, use_env, exec_allowed);
+    case KEY_EXIT:
+    case 'q':
+    case 'Q':
+      return;
+    default:
+      break;
+    }
+  }
+}
